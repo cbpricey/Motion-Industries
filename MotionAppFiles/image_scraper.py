@@ -84,12 +84,16 @@ def fetch_image_urls(manufacturer, part_number, con_url, description):
     num_images = 20
     headers = {"User-Agent": "Mozilla/5.0"}
 
-    if man_website:
-        if part_number:
+    if man_website: # 1. manufacturer website mode
+        if part_number: # if part number is available
             search_query = f'site:{con_url} "{manufacturer} {part_number}"'
-        else:
+        else: # fallback to description if no part number
             search_query = f'site:{con_url} "{manufacturer} {description}"'
-    else:
+
+    if not man_website and part_number: # 2. Try known distributor/product sites (exact SKU match)
+        search_query = f'site:trusted_distributor.com "{manufacturer} {part_number}"'
+
+    else: # 3. generic web search mode
         if part_number:
             search_query = f'"{manufacturer} {part_number}"'
         else:
