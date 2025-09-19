@@ -3,7 +3,10 @@ import sys
 import requests
 import urllib.parse
 import urllib.request
+import json
+from urllib.parse import quote, urlparse
 from bs4 import BeautifulSoup
+import requests
 from excel_parse import get_entries, get_context_urls
 from autoimage import resize_images
 from urllib.parse import urlparse
@@ -14,6 +17,9 @@ import threading
 from tkinter.filedialog import askopenfilename
 import json
 import re
+import requests, certifi
+from io import BytesIO
+from PIL import Image, UnidentifiedImageError
 
 if os.name == 'nt':  # Windows
     CONFIG_DIR = os.path.join(os.environ["USERPROFILE"], "ImageScraperFiles")
@@ -43,12 +49,16 @@ def resource_path(relative_path):
 
 # Function to produce search URLs
 def fetch_image_urls(manufacturer, part_number, con_url, description):
+    #prefer Bing full-size URLs (murl) and skip known thumbnail hosts
+    #scrape was returning too many thumbnails, block known thumb hosts
+
     global man_website
     num_images = 20
-    headers = {"User-Agent": "Mozilla/5.0"} 
+    headers = {"User-Agent": "Mozilla/5.0"}
+
     if man_website:
         if part_number:
-            search_query = f'site:{con_url} "{manufacturer} {part_number}"' #Specific sites
+            search_query = f'site:{con_url} "{manufacturer} {part_number}"'
         else:
             search_query = f'site:{con_url} "{manufacturer} {description}"'
     else:
@@ -56,28 +66,68 @@ def fetch_image_urls(manufacturer, part_number, con_url, description):
             search_query = f'"{manufacturer} {part_number}"'
         else:
             search_query = f'"{manufacturer} {description}"'
-    
-    google_url = f"https://www.google.com/search?tbm=isch&q={urllib.parse.quote(search_query)}"
-    bing_url = f"https://www.bing.com/images/search?q={urllib.parse.quote(search_query)}"
-    
+
+
+    # add negative terms to avoid logos/icons/etc.
+    NEG = "-logo -logos -icon -icons -vector -clipart -illustration -banner -headquarters -building -sign -brand"
+    q = f"{search_query} {NEG}"
+
+    # Bing Images with "large photos" filter helps quality a lot
+    #Bing Images with large-photo filter; Google unchanged
+    google_url = f"https://www.google.com/search?tbm=isch&q={urllib.parse.quote(q)}"
+    bing_url = f"https://www.bing.com/images/search?q={urllib.parse.quote(q)}&qft=%2Bfilterui%3Aimagesize-large%2Bfilterui%3Aphoto-photo"
+
     image_urls = []
-    
-    for url in [google_url, bing_url]:
-        response = requests.get(url, headers=headers)
-        soup = BeautifulSoup(response.text, "html.parser")
-        
-        img_tags = soup.find_all("img")
-        
-        for img in img_tags:
-            img_url = img.get("src") or img.get("data-src")
-            if img_url and img_url.startswith("http") and is_valid_url(img_url):
-                image_urls.append(img_url)
-                if len(image_urls) >= num_images:  # Break only after reaching the total number of images
+    seen = set()
+    THUMB_HOSTS = {
+        "encrypted-tbn0.gstatic.com",
+        "tse1.mm.bing.net", "tse2.mm.bing.net", "tse3.mm.bing.net", "tse4.mm.bing.net",
+    }
+
+    def add(u):
+        if not u or not u.startswith("http"): 
+            return
+        host = urlparse(u).netloc.lower()
+        if host in THUMB_HOSTS:
+            return
+        if u not in seen:
+            seen.add(u)
+            image_urls.append(u)
+
+    # 1) Try to pull Bing full-size targets from anchor metadata (murl)
+    try:
+        r = requests.get(bing_url, headers=headers, timeout=15)
+        soup = BeautifulSoup(r.text, "html.parser")
+        for a in soup.select("a.iusc, a.iuscp"):
+            meta_raw = a.get("m") or a.get("mad")
+            if not meta_raw:
+                continue
+            try:
+                meta = json.loads(meta_raw)
+            except Exception:
+                continue
+            murl = meta.get("murl") or meta.get("murl2")
+            add(murl)
+            if len(image_urls) >= num_images:
+                break
+    except Exception:
+        pass
+
+    # 2) Fallback: scrape <img> on Bing/Google, but skip thumb hosts
+    if len(image_urls) < num_images:
+        try:
+            r = requests.get(google_url, headers=headers, timeout=15)
+            soup = BeautifulSoup(r.text, "html.parser")
+            for img in soup.find_all("img"):
+                src = img.get("src") or img.get("data-src")
+                add(src)
+                if len(image_urls) >= num_images:
                     break
-        if len(image_urls) >= num_images:
-            break
-    
+        except Exception:
+            pass
+
     return image_urls
+
 
 def safe_name(s: str, max_len=120) -> str:
     # replace path separators first
@@ -95,16 +145,40 @@ def safe_name(s: str, max_len=120) -> str:
 def download_images(image_urls, manufacturer, part_number, output_dir):
     save_dir = f"{output_dir}/images/staging"
     os.makedirs(save_dir, exist_ok=True)
-    
+    sess = requests.Session()
+    sess.headers.update({"User-Agent": "Mozilla/5.0"})
+
     for idx, img_url in enumerate(image_urls):
         try:
-            stem = safe_name(f"{manufacturer}_{part_number}_{idx}")
+            resp = sess.get(img_url, timeout=20, stream=True)
+            resp.raise_for_status()
+            content = resp.content
+
+            #byte-size gate (~20KB)
+            if len(content) < 20000:
+                print(f"Skipped (too small): {img_url}")
+                continue
+
+            #pixel-size gate (>= 400x400)
+            try:
+                im = Image.open(BytesIO(content))
+                w, h = im.size
+                if w < 400 or h < 400:
+                    print(f"Skipped (too small: {w}x{h}): {img_url}")
+                    continue
+            except Exception:
+                print(f"Skipped (invalid image): {img_url}")
+                continue
+
+            stem = re.sub(r"[^A-Za-z0-9._-]+", "_", f"{manufacturer}_{part_number}_{idx}").strip("._-")[:120] or "img"
             img_path = os.path.join(save_dir, f"{stem}.jpg")
-            urllib.request.urlretrieve(img_url, img_path)
+            with open(img_path, "wb") as f:
+                f.write(content)
             print(f"Downloaded: {img_path}")
             print(f"Downloaded from: {img_url}")
         except Exception as e:
             print(f"Failed to download {img_url}: {e}")
+
 
 def clear_directory(output_dir):
     dir_path = f"{output_dir}/images/staging"
