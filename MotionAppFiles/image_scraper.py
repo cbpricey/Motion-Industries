@@ -13,6 +13,7 @@ from PIL import Image, ImageTk
 import threading
 from tkinter.filedialog import askopenfilename
 import json
+import re
 
 if os.name == 'nt':  # Windows
     CONFIG_DIR = os.path.join(os.environ["USERPROFILE"], "ImageScraperFiles")
@@ -78,6 +79,18 @@ def fetch_image_urls(manufacturer, part_number, con_url, description):
     
     return image_urls
 
+def safe_name(s: str, max_len=120) -> str:
+    # replace path separators first
+    s = s.replace("/", "_").replace("\\", "_")
+    # drop quotes that confuse shells/FS
+    s = s.replace('"', '').replace("'", "")
+    # collapse anything not alnum, dot, dash, underscore into underscore
+    s = re.sub(r"[^A-Za-z0-9._-]+", "_", s)
+    # trim and shorten
+    s = s.strip("._-")[:max_len]
+    return s or "img"
+
+
 # Function to download images and name them "ManufacturerName"_"PartNumber"
 def download_images(image_urls, manufacturer, part_number, output_dir):
     save_dir = f"{output_dir}/images/staging"
@@ -85,9 +98,11 @@ def download_images(image_urls, manufacturer, part_number, output_dir):
     
     for idx, img_url in enumerate(image_urls):
         try:
-            img_path = os.path.join(save_dir, f"{manufacturer}_{part_number}_{idx}.jpg")
+            stem = safe_name(f"{manufacturer}_{part_number}_{idx}")
+            img_path = os.path.join(save_dir, f"{stem}.jpg")
             urllib.request.urlretrieve(img_url, img_path)
             print(f"Downloaded: {img_path}")
+            print(f"Downloaded from: {img_url}")
         except Exception as e:
             print(f"Failed to download {img_url}: {e}")
 
