@@ -1,0 +1,52 @@
+.main {
+  background-color: #FFCCCB;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  grid-template-columns: 1fr 1fr;
+  grid-template-areas:
+    "header header"
+    "pending pending"
+    "approved rejected";
+  min-height: 100vh;
+  gap: 2rem;
+  padding: 2rem;
+}
+
+.header {
+  grid-area: header;
+  text-align: center;
+}
+
+.pending {
+  grid-area: pending;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 300px; /* keeps the space stable */
+}
+
+.pendingTitle {
+    margin-bottom: 1rem;
+}
+
+.pendingCard {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 250px;
+    width: 100%;
+}
+
+.approved {
+  grid-area: approved;
+  text-align: left;
+}
+
+.rejected {
+  grid-area: rejected;
+  text-align: right;
+}
+
+.placeholder {
+  opacity: 0.5;
+}

@@ -1,0 +1,10 @@
+version: '3.8'
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.0
+    container_name: mi-elasticsearch
+    environment:
+      - discovery.type=single-node   # run in dev mode, no cluster needed
+      - xpack.security.enabled=false # turn off login for local demo
+    ports:
+      - "9200:9200"  # expose ES on localhost:9200
