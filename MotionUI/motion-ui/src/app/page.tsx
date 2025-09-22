@@ -84,6 +84,23 @@ export default function MyApp() {
     setPending((prev) => prev.filter(r => r.id !== id));
   }
 
+  /** Undo an approval/rejection (moves image back to top of pending) */
+  function handleUndoApprove(id: number) {
+    const review = approved.find(r => r.id === id);
+    if (!review) return;
+
+    setPending(prev => [review, ...prev]); // add to top
+    setApproved(prev => prev.filter(r => r.id !== id));
+  }
+
+  function handleUndoReject(id: number) {
+    const review = rejected.find(r => r.id === id);
+    if (!review) return;
+
+    setPending(prev => [review, ...prev]); // add to top
+    setRejected(prev => prev.filter(r => r.id !== id));
+  }
+
   const current = pending[0];
 
   return (
@@ -113,8 +130,18 @@ export default function MyApp() {
           {approved.length === 0 ? (
             <p className={styles.placeholder}>None yet</p>
           ) : (
-            approved.map(r => <p key={r.id}>{r.title} ✅</p>)
-          )}
+          approved.map(r => (
+            <p
+              key={r.id}
+              className={styles.undo}
+              onClick={() => handleUndoApprove(r.id)}
+              style={{ cursor: 'pointer', color: 'green' }}
+              title="Click to move back to pending"
+            >
+              {r.title} ✅
+            </p>
+          ))
+        )}
       </section>
 
       <section className={styles.rejected}>
@@ -122,8 +149,18 @@ export default function MyApp() {
           {rejected.length === 0 ? (
             <p className={styles.placeholder}>None yet</p>
           ) : (
-            rejected.map(r => <p key={r.id}>{r.title} ❌</p>)
-          )}
+          rejected.map(r => (
+            <p
+              key={r.id}
+              className={styles.undo}
+              onClick={() => handleUndoReject(r.id)}
+              style={{ cursor: 'pointer', color: 'red' }}
+              title="Click to move back to pending"
+            >
+              {r.title} ❌
+            </p>
+          ))
+        )}
       </section>
     </main>
   );

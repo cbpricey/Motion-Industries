@@ -1,3 +1,5 @@
+import "./ReviewCard.css";
+
 type ReviewCardProps = {
     title: string;
     text: string;
@@ -27,9 +29,9 @@ export default function ReviewCard ({
             <p>{text}</p>
             <p>Rating: {rating}/5</p>
             <p>{isFeatured && '⭐'}</p>
-            <div>
-                <button onClick={onApprove}>✅ Approve</button>
-                <button onClick={onReject}>❌ Reject</button>
+            <div className="buttonRow">
+                <button className="approveButton" onClick={onApprove}>✅ Approve</button>
+                <button className="rejectButton" onClick={onReject}>❌ Reject</button>
             </div>
         </section>
     )

@@ -1,0 +1,28 @@
+.buttonRow {
+  display: flex;
+  justify-content: space-between; /* Approve on the left, Reject on the right */
+  align-items: center;
+  margin-top: 10px;
+  gap: 10px
+}
+
+.approveButton,
+.rejectButton {
+  flex: 1;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+/* Optional styling */
+.approveButton {
+  background-color: #e0f7e9;
+  color: #2e7d32;
+}
+
+.rejectButton {
+  background-color: #fdecea;
+  color: #c62828;
+}
