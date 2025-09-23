@@ -1,0 +1,34 @@
+[
+  {
+    "sku": "BB-1234",
+    "title": "Ball Bearing",
+    "description": "High precision steel ball bearing",
+    "image_url": "https://picsum.photos/300/200",
+    "confidence_score": 0.87,
+    "status": "pending"
+  },
+  {
+    "sku": "ENG-567",
+    "title": "Engine",
+    "description": "Low-res image",
+    "image_url": "https://picsum.photos/300/201",
+    "confidence_score": 0.52,
+    "status": "pending"
+  },
+  {
+    "sku": "ENG-567",
+    "title": "Engine",
+    "description": "Low-res image",
+    "image_url": "https://picsum.photos/300/201",
+    "confidence_score": 0.52,
+    "status": "pending"
+  },
+  {
+    "sku": "ENG-567",
+    "title": "Engine",
+    "description": "Low-res image",
+    "image_url": "https://picsum.photos/300/201",
+    "confidence_score": 0.52,
+    "status": "pending"
+  }
+]

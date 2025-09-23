@@ -1,33 +1,38 @@
 import "./ReviewCard.css";
 
 type ReviewCardProps = {
+    sku: string;
     title: string;
-    text: string;
-    rating: number;
-    imageSrc: string;
+    description: string;
+    confidence_score: number;
+    image_url: string;
+    status: string;
     imageAlt?: string;
     isFeatured?: boolean;
     onApprove?: () => void;
     onReject?: () => void;
+    onSearch?: () => void;
 }
 
 
 export default function ReviewCard ({ 
+    sku,
     title, 
-    text, 
-    rating, 
-    imageSrc, 
+    description, 
+    confidence_score, 
+    image_url, 
     imageAlt, 
     isFeatured = false,
     onApprove,
     onReject,
+    onSearch,
 }: ReviewCardProps) {
     return (
         <section>
             <h1>{title}</h1>
-            <img src={imageSrc} alt={imageAlt || "Product Image"} />
-            <p>{text}</p>
-            <p>Rating: {rating}/5</p>
+            <img src={image_url} alt={imageAlt || "Product Image"} />
+            <p>{description}</p>
+            <p>Confidence: {confidence_score}</p>
             <p>{isFeatured && '⭐'}</p>
             <div className="buttonRow">
                 <button className="approveButton" onClick={onApprove}>✅ Approve</button>
