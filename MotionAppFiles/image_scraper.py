@@ -20,6 +20,7 @@ import re
 import requests, certifi
 from io import BytesIO
 from colorama import init as _cinit, Fore, Style # type: ignore
+from json_sidecar import build_sidecar_schema, write_sidecar_json, copy_sidecars_from_staging
 
 # ========== colored logging (drop-in) ==========
 VERBOSE = True  # set False to reduce noise
