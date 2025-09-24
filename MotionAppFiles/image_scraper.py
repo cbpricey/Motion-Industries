@@ -232,12 +232,12 @@ def download_images(image_urls, manufacturer, part_number, output_dir):
             resp.raise_for_status()
             content = resp.content
 
-            #byte-size gate (~20KB)
+            # byte-size gate (~20KB)
             if len(content) < 20000:
                 log_skip(f"Too small (bytes={len(content)}): {img_url}")
                 continue
 
-            #pixel-size gate (>= 400x400)
+            # pixel-size gate (>= 400x400)
             try:
                 im = Image.open(BytesIO(content))
                 w, h = im.size
@@ -250,13 +250,35 @@ def download_images(image_urls, manufacturer, part_number, output_dir):
 
             stem = re.sub(r"[^A-Za-z0-9._-]+", "_", f"{manufacturer}_{part_number}_{idx}").strip("._-")[:120] or "img"
             img_path = os.path.join(save_dir, f"{stem}.jpg")
+
+            # save image bytes
             with open(img_path, "wb") as f:
                 f.write(content)
             log_ok(f"Saved: {img_path}")
             log_dbg(f"from: {img_url}")
+
+            # === NEW: write JSON sidecar next to staged image ===
+            try:
+                sidecar = build_sidecar_schema(
+                    image_path=img_path,
+                    image_bytes=content,
+                    im=im,                               # already opened above
+                    manufacturer=manufacturer,
+                    part_number=part_number,
+                    description=None,                    # pass real description later if desired
+                    image_url=img_url,
+                    page_url=None,
+                    referer=None,
+                )
+                sc_path = write_sidecar_json(img_path, sidecar)  # pretty=False for compact files
+                log_dbg(f"sidecar -> {sc_path}")
+            except Exception as se:
+                log_err(f"Sidecar write failed for {img_path}: {se}")
+            # === END NEW ===
+
         except Exception as e:
             log_err(f"Failed to download {img_url}: {e}")
-
+            
 
 def clear_directory(output_dir):
     dir_path = f"{output_dir}/images/staging"
@@ -459,10 +481,17 @@ def start_scraping(excel_file, entry_range_x, entry_range_y, context_file,output
             if image_urls:
                 log_step("Downloading images...")
                 download_images(image_urls, manufacturer, part_number, output_dir)
+
+                staging_dir = f"{output_dir}/images/staging"
                 if man_website:
-                    resize_images(f"{output_dir}/images/staging", f"{output_dir}/images/specific/{manufacturer}/{id}")
+                    dest_dir = f"{output_dir}/images/specific/{manufacturer}/{id}"
                 else:
-                    resize_images(f"{output_dir}/images/staging", f"{output_dir}/images/generic/{manufacturer}/{id}")
+                    dest_dir = f"{output_dir}/images/generic/{manufacturer}/{id}"
+
+                resize_images(staging_dir, dest_dir)
+                # NEW: bring sidecars along to the final folder
+                copy_sidecars_from_staging(staging_dir, dest_dir)
+
                 clear_directory(output_dir)
             else:
                 log_skip(f"No images found for {manufacturer} {part_number}.")
