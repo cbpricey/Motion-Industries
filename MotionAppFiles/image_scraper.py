@@ -48,6 +48,13 @@ def log_skip(msg):      _log("SKIP",   Fore.YELLOW,  msg)
 def log_err(msg):       _log("ERR",    Fore.RED,     msg)
 def log_dbg(msg):
     if VERBOSE: _log("DBG", Fore.WHITE, msg, dim=True)
+
+def log_stage(label, detail=""):
+    # Yellow banner like: [Searching OEM] site:foo.com PN='123'
+    msg = f"[{label}]"
+    if detail:
+        msg += f" {detail}"
+    log_filter(msg)
 # =============================================================
 
 if os.name == 'nt':  # Windows
@@ -62,6 +69,7 @@ os.makedirs(CONFIG_DIR, exist_ok=True)
 should_stop = False # Flag to check if scraping should stop
 running = False # Flag to check if scraping is in progress
 man_website = False # True if manufacturer website is used
+forced_site = None # if set, fetch_image_urls will do site:<forced_site> search
 
 # Function to check if url is valid
 def is_valid_url(url):
@@ -80,27 +88,45 @@ def fetch_image_urls(manufacturer, part_number, con_url, description):
     #prefer Bing full-size URLs (murl) and skip known thumbnail hosts
     #scrape was returning too many thumbnails, block known thumb hosts
 
-    global man_website
+    global man_website, forced_site
     num_images = 20
     headers = {"User-Agent": "Mozilla/5.0"}
 
-    if man_website: # 1. manufacturer website mode
-        if part_number: # if part number is available
+    if man_website:
+        # 1) strict site search (OEM)
+        if part_number:
             search_query = f'site:{con_url} "{manufacturer} {part_number}"'
-        else: # fallback to description if no part number
+        else:
             search_query = f'site:{con_url} "{manufacturer} {description}"'
 
-    if not man_website and part_number: # 2. Try known distributor/product sites (exact SKU match)
-        search_query = f'site:trusted_distributor.com "{manufacturer} {part_number}"'
+    elif forced_site:
+        # 2) strict site search (enterprise/distributor from context sheet)
+        if part_number:
+            search_query = f'site:{forced_site} "{manufacturer} {part_number}"'
+        else:
+            search_query = f'site:{forced_site} "{manufacturer} {description}"'
 
-    else: # 3. generic web search mode
+    else:
+        # 3) generic
         if part_number:
             search_query = f'"{manufacturer} {part_number}"'
         else:
             search_query = f'"{manufacturer} {description}"'
 
+    allowed_hosts = set()
+    try:
+        if man_website and con_url:
+            # con_url might be just a host; normalize
+            cu = con_url if "://" in con_url else ("https://" + con_url)
+            allowed_hosts.add(urlparse(cu).netloc.lower())
+        elif forced_site:
+            fs = forced_site if "://" in forced_site else ("https://" + forced_site)
+            allowed_hosts.add(urlparse(fs).netloc.lower())
+    except Exception:
+        pass
+
     # add negative terms to avoid logos/icons/etc.
-    NEG = "-logo -logos -icon -icons -vector -clipart -illustration -banner -headquarters -building -sign -brand"
+    NEG = "-logo -logos -icon -icons -vector -clipart -illustration -banner -headquarters -building -sign -brand -ai -AI -Ai"
     q = f"{search_query} {NEG}"
 
     # Bing Images with "large photos" filter helps quality a lot
@@ -125,6 +151,9 @@ def fetch_image_urls(manufacturer, part_number, con_url, description):
         host = urlparse(u).netloc.lower()
         if host in THUMB_HOSTS:
             log_skip(f"thumb host: {u}")
+            return
+        if allowed_hosts and host not in allowed_hosts:
+            log_skip(f"off-site host: {host} (expecting: {', '.join(sorted(allowed_hosts))})")
             return
         if u not in seen:
             seen.add(u)
@@ -165,6 +194,12 @@ def fetch_image_urls(manufacturer, part_number, con_url, description):
                     break
         except Exception as e:
             log_err(f"Google parse failed: {e}")
+
+    # NEW: include host filter info in summary
+    if allowed_hosts:
+        log_ok(f"Total image URLs selected: {len(image_urls)} (host filter: {', '.join(sorted(allowed_hosts))})")
+    else:
+        log_ok(f"Total image URLs selected: {len(image_urls)}")
 
     log_ok(f"Total image URLs selected: {len(image_urls)}")
     return image_urls
@@ -280,6 +315,14 @@ def run():
     running = False
     return
 
+def _classify_host_for_banner(host: str) -> str:
+    """Very light heuristic: treat known parent/brand domains as Enterprise, others as Distributor."""
+    h = (host or "").lower()
+    # Add any enterprise keywords you want here (e.g., parent corp / brand)
+    if any(k in h for k in ["timken", "nsk", "skf", "fag", "ntn", "ina", "schaeffler", "koyo", "nachi"]):
+        return "Enterprise"
+    return "non-OEM distributors"
+
 def start_scraping(excel_file, entry_range_x, entry_range_y, context_file,output_dir):
     global current_entry_index, total_entry_count, man_website,running
     entries = get_entries(excel_file)  # Fetch entries as tuples
@@ -295,26 +338,126 @@ def start_scraping(excel_file, entry_range_x, entry_range_y, context_file,output
             if (entry_range_x != 0 and i < entry_range_x -1) or (entry_range_y != 0 and entry_range_y <= i):
                 continue
             if manufacturer != last_manufacturer:
-                for (url_manufacturer, url) in (context_urls):
-                    if manufacturer == url_manufacturer:
-                        con_url = url
-                        man_website = True
+                ctx_hosts = []  # list of (host, source_type) where source_type in {"OEM","Enterprise","Distributor","Unknown"}
+
+                for row in context_urls:
+                    # Support both shapes: (MFR_NAME, URL) or (MFR_NAME, URL, ENTERPRISE_NAME)
+                    if len(row) == 2:
+                        url_mfr, url = row
+                        enterprise_name = None
+                    else:
+                        url_mfr, url, enterprise_name = row
+
+                    if manufacturer == url_mfr and url:
+                        host = urlparse(url).netloc or url
+                        if not host:
+                            continue
+
+                        # Classify EXACTLY from Excel:
+                        # - If ENTERPRISE_NAME equals MFR_NAME => OEM
+                        # - If ENTERPRISE_NAME present and != MFR_NAME => Enterprise
+                        # - If there's an explicit "Distributor" text in ENTERPRISE_NAME (optional), treat as Distributor
+                        # - Otherwise mark Unknown (will show "General" label if used)
+                        if enterprise_name is not None:
+                            if str(enterprise_name).strip().upper() == str(manufacturer).strip().upper():
+                                source_type = "OEM"
+                            elif str(enterprise_name).strip().upper() == "DISTRIBUTOR":
+                                source_type = "Distributor"
+                            else:
+                                source_type = "Enterprise"
+                        else:
+                            source_type = "Unknown"
+
+                        if (host, source_type) not in ctx_hosts:
+                            ctx_hosts.append((host, source_type))
+
+                # OEM defaults to the first row marked OEM (or just first entry if none labeled)
+                if ctx_hosts:
+                    # Prefer an OEM entry as first con_url if present
+                    oem_hosts = [h for (h, t) in ctx_hosts if t == "OEM"]
+                    con_url = (oem_hosts[0] if oem_hosts else ctx_hosts[0][0])
+                    man_website = True
+                else:
+                    con_url = ""
+                    man_website = False
+
+                last_manufacturer = manufacturer
+
+            current_entry_index = i + 1
+            tk.Label(frame, text=f"Entry ({current_entry_index}/{total_entry_count})").grid(row=6, column=1, padx=10, pady=10)
+            log_step(f"({i + 1}/{len(entries)}) Searching images for: {manufacturer} | PN='{part_number}' | id={id}")
+
+            image_urls = []
+
+            # 1) OEM attempt (if we had at least one context host)
+            if man_website and con_url:
+                log_stage("Searching OEM", f"site:{con_url} PN='{part_number}'")
+                image_urls = fetch_image_urls(manufacturer, part_number, con_url, description)
+                if image_urls:
+                    log_ok("[OEM] Found candidates")
+                else:
+                    log_skip("[OEM] Not found")
+
+            # 2) Enterprise/Distributor attempts (remaining context hosts)
+            if (not image_urls) and ('ctx_hosts' in locals()) and len(ctx_hosts) >= 1:
+                # Try all hosts EXCEPT the one we already used for OEM (con_url)
+                tried_oem_host = con_url if (man_website and con_url) else None
+                for host, source_type in ctx_hosts:
+                    if tried_oem_host and host == tried_oem_host:
+                        continue
+
+                    # Stage banner in yellow based on exact source type
+                    if source_type == "OEM":
+                        log_stage("Searching OEM", f"site:{host} PN='{part_number}'")
+                    elif source_type == "Enterprise":
+                        log_stage("Searching Enterprise", f"site:{host} PN='{part_number}'")
+                    elif source_type == "Distributor":
+                        log_stage("Searching non-OEM distributors", f"site:{host} PN='{part_number}'")
+                    else:
+                        log_stage("Searching General", f"site:{host} PN='{part_number}'")
+
+                    man_website = (source_type == "OEM")  # only OEM marks this True
+                    forced_site = None if man_website else host
+
+                    image_urls = fetch_image_urls(manufacturer, part_number, host if man_website else "", description)
+                    if image_urls:
+                        if source_type == "OEM":
+                            log_ok("[OEM] Found candidates")
+                        elif source_type == "Enterprise":
+                            log_ok("[Enterprise] Found candidates")
+                        elif source_type == "Distributor":
+                            log_ok("[Distributor] Found candidates")
+                        else:
+                            log_ok("[General] Found candidates")
                         break
                     else:
-                        con_url = ""
-                        man_website = False
-                last_manufacturer = manufacturer
-            current_entry_index = i + 1
-            tk.Label(frame, text= f"Entry ({current_entry_index}/{total_entry_count})").grid(row=6,column=1,padx=10,pady=10)
-            log_step(f"({i + 1}/{len(entries)}) Searching images for: {manufacturer} | PN='{part_number}' | id={id}")
-            if man_website:
-                log_search(f"Manufacturer site mode: {con_url}")
-            else:
-                log_search("Generic search mode")
-            image_urls = fetch_image_urls(manufacturer, part_number, con_url, description)
+                        if source_type == "OEM":
+                            log_skip("[OEM] Not found")
+                        elif source_type == "Enterprise":
+                            log_skip("[Enterprise] Not found")
+                        elif source_type == "Distributor":
+                            log_skip("[Distributor] Not found")
+                        else:
+                            log_skip("[General] Not found")
+
+                forced_site = None  # reset after loop
+
+
+            # 3) Generic search fallback
+            if not image_urls:
+                log_stage("General image search", f"MFR='{manufacturer}' PN='{part_number}'")
+                man_website = False
+                forced_site = None
+                image_urls = fetch_image_urls(manufacturer, part_number, "", description)
+                if image_urls:
+                    log_ok("[General] Found candidates")
+                else:
+                    log_skip("[General] Not found")
+
+            # Save if anything was found
             if image_urls:
                 log_step("Downloading images...")
-                download_images(image_urls, manufacturer, part_number,output_dir)
+                download_images(image_urls, manufacturer, part_number, output_dir)
                 if man_website:
                     resize_images(f"{output_dir}/images/staging", f"{output_dir}/images/specific/{manufacturer}/{id}")
                 else:
@@ -322,8 +465,6 @@ def start_scraping(excel_file, entry_range_x, entry_range_y, context_file,output
                 clear_directory(output_dir)
             else:
                 log_skip(f"No images found for {manufacturer} {part_number}.")
-    else:
-        log_err("No valid entries found in the Excel file.")
     
     running = False
     run_button.config(state=tk.NORMAL)
