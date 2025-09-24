@@ -1,5 +1,7 @@
 [
   {
+    "id": 0,
+    "manufacturer": "Timken",
     "sku": "BB-1234",
     "title": "Ball Bearing",
     "description": "High precision steel ball bearing",
@@ -8,6 +10,8 @@
     "status": "pending"
   },
   {
+    "id": 1,
+    "manufacturer": "Danfoss",
     "sku": "ENG-567",
     "title": "Engine",
     "description": "Low-res image",
@@ -16,18 +20,22 @@
     "status": "pending"
   },
   {
+    "id": 2,
+    "manufacturer": "Danfoss",
     "sku": "ENG-567",
     "title": "Engine",
     "description": "Low-res image",
-    "image_url": "https://picsum.photos/300/201",
+    "image_url": "https://picsum.photos/300/202",
     "confidence_score": 0.52,
     "status": "pending"
   },
   {
-    "sku": "ENG-567",
+    "id": 3,
+    "manufacturer": "Emerson",
+    "sku": "ENG-568",
     "title": "Engine",
     "description": "Low-res image",
-    "image_url": "https://picsum.photos/300/201",
+    "image_url": "https://picsum.photos/300/203",
     "confidence_score": 0.52,
     "status": "pending"
   }

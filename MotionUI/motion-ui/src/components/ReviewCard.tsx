@@ -1,6 +1,8 @@
 import "./ReviewCard.css";
 
 type ReviewCardProps = {
+    id: number;
+    manufacturer: string;
     sku: string;
     title: string;
     description: string;
@@ -16,6 +18,7 @@ type ReviewCardProps = {
 
 
 export default function ReviewCard ({ 
+    manufacturer,
     sku,
     title, 
     description, 
@@ -29,6 +32,7 @@ export default function ReviewCard ({
 }: ReviewCardProps) {
     return (
         <section>
+            <h1>{manufacturer}</h1>
             <h1>{title}</h1>
             <img src={image_url} alt={imageAlt || "Product Image"} />
             <p>{description}</p>

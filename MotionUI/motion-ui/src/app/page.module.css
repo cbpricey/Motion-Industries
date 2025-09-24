@@ -17,6 +17,23 @@
   text-align: center;
 }
 
+.filterContainer {
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.filterContainer label {
+  font-weight: bold;
+}
+
+.filterContainer select {
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+}
+
 .pending {
   grid-area: pending;
   display: flex;

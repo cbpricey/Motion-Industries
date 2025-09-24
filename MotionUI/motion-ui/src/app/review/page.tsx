@@ -9,62 +9,79 @@ const foundSKUImages = mockIndex as ReviewCardProps[];
 
 
 export default function Review () {
+  const [selectedManufacturer, setSelectedManufacturer] = useState<string>("All");
   const [pending, setPending] = useState(foundSKUImages);
   const [approved, setApproved] = useState<ReviewCardProps[]>([]);
   const [rejected, setRejected] = useState<ReviewCardProps[]>([]);
 
-  function handleApprove(sku: string) {
-    const review = pending.find((r) => r.sku === sku);
+  function handleApprove(id: number) {
+    const review = pending.find((r) => r.id === id);
     if (!review) return;
 
     setApproved((prev) => [...prev, review]);
-    setPending((prev) => prev.filter((r) => r.sku !== sku));
+    setPending((prev) => prev.filter((r) => r.id !== id));
   }
 
   // function handleSearch(sku: string) {
   //   const review[] = pending.find()
   // }
 
-  function handleReject(sku: string) {
-    const review = pending.find((r) => r.sku === sku);
+  function handleReject(id: number) {
+    const review = pending.find((r) => r.id === id);
     if (!review) return;
 
     setRejected((prev) => [...prev, review]);
-    setPending((prev) => prev.filter((r) => r.sku !== sku));
+    setPending((prev) => prev.filter((r) => r.id !== id));
   }
 
   /** Undo an approval/rejection (moves image back to top of pending) */
-  function handleUndoApprove(sku: string) {
-    const review = approved.find((r) => r.sku === sku);
+  function handleUndoApprove(id: number) {
+    const review = approved.find((r) => r.id === id);
     if (!review) return;
 
     setPending((prev) => [review, ...prev]); // add to top
-    setApproved((prev) => prev.filter((r) => r.sku !== sku));
+    setApproved((prev) => prev.filter((r) => r.id !== id));
   }
 
-  function handleUndoReject(sku: string) {
-    const review = rejected.find((r) => r.sku === sku);
+  function handleUndoReject(id: number) {
+    const review = rejected.find((r) => r.id === id);
     if (!review) return;
 
     setPending((prev) => [review, ...prev]); // add to top
-    setRejected((prev) => prev.filter((r) => r.sku !== sku));
+    setRejected((prev) => prev.filter((r) => r.id !== id));
   }
 
-  const current = pending[0];
+  // Filter the pending list based on the selected manufacturer
+  const filteredPending = selectedManufacturer === "All" 
+    ? pending : pending.filter(r => r.manufacturer === selectedManufacturer);
+
+  const current = filteredPending[0];
 
   return (
     <main className={styles.main}>
       <h1 className={styles.header}>Motion Industries Review Flow</h1>
 
+      <div className={styles.filterContainer}>
+        <label htmlFor="manufacturerFilter">Filter by Manufacturer: </label>
+        <select
+          id="manufacturerFilter" value={selectedManufacturer}
+          onChange={(e) => setSelectedManufacturer(e.target.value)}>
+          <option value="All">All</option>
+          {[...new Set(pending.map(r => r.manufacturer))].map(m => (
+            <option key={m} value={m}>{m}</option>
+          ))}
+        </select>
+      </div>
+      
       <section className={styles.pending}>
         <h2 className={styles.pendingTitle}>Pending Review</h2>
         <div className={styles.pendingCard}>
           {current ? (
             <ReviewCard
-              key={current.sku}
+              key={current.id}
               {...current}
-              onApprove={() => handleApprove(current.sku)}
-              onReject={() => handleReject(current.sku)}
+              onApprove={() => handleApprove(current.id)}
+              onReject={() => handleReject(current.id)}
             />
           ) : (
             <p>No more pending reviews 🎉</p>
@@ -79,9 +96,9 @@ export default function Review () {
         ) : (
           approved.map((r) => (
             <p
-              key={r.sku}
+              key={r.id}
               className={styles.undo}
-              onClick={() => handleUndoApprove(r.sku)}
+              onClick={() => handleUndoApprove(r.id)}
               style={{ cursor: "pointer", color: "green" }}
               title="Click to move back to pending"
             >
@@ -98,9 +115,9 @@ export default function Review () {
         ) : (
           rejected.map((r) => (
             <p
-              key={r.sku}
+              key={r.id}
               className={styles.undo}
-              onClick={() => handleUndoReject(r.sku)}
+              onClick={() => handleUndoReject(r.id)}
               style={{ cursor: "pointer", color: "red" }}
               title="Click to move back to pending"
             >
