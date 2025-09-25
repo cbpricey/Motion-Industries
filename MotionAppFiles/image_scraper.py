@@ -21,6 +21,14 @@ import requests, certifi
 from io import BytesIO
 from colorama import init as _cinit, Fore, Style # type: ignore
 from json_sidecar import build_sidecar_schema, write_sidecar_json, copy_sidecars_from_staging
+from elasticsearch import Elasticsearch
+from datetime import datetime
+
+es = Elasticsearch(
+    "http://localhost:9200",
+    basic_auth=("elastic", "w8bLFnhadBAWxnsiK9mv"),
+    verify_certs=False  # Disable certificate verification for local testing
+)
 
 # ========== colored logging (drop-in) ==========
 VERBOSE = True  # set False to reduce noise
@@ -276,9 +284,30 @@ def download_images(image_urls, manufacturer, part_number, output_dir):
                 log_err(f"Sidecar write failed for {img_path}: {se}")
             # === END NEW ===
 
+            # === NEW: index metadata in Elasticsearch ===
+            try:
+                index_image_metadata(img_url, manufacturer, part_number, None)  # Pass real description if desired
+            except Exception as ie:
+                log_err(f"Elasticsearch indexing failed for {img_url}: {ie}")
+            # === END NEW ===
+
         except Exception as e:
             log_err(f"Failed to download {img_url}: {e}")
             
+
+def index_image_metadata(image_url, manufacturer, part_number, description):
+    doc = {
+        "image_url": image_url,
+        "manufacturer": manufacturer,
+        "part_number": part_number,
+        "description": description,
+        "timestamp": datetime.now()
+    }
+    try:
+        response = es.index(index="image_metadata", document=doc)
+        log_ok(f"Document indexed successfully: {response['_id']}")
+    except Exception as e:
+        log_err(f"Elasticsearch indexing failed for {image_url}: {e}")
 
 def clear_directory(output_dir):
     dir_path = f"{output_dir}/images/staging"
