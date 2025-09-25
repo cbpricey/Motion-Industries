@@ -20,6 +20,18 @@ import re
 import requests, certifi
 from io import BytesIO
 from colorama import init as _cinit, Fore, Style # type: ignore
+
+import logging
+
+# Configure logging to write to a file and optionally print to the terminal
+logging.basicConfig(
+    level=logging.DEBUG,  # Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+    format="%(asctime)s [%(levelname)s] %(message)s",  # Log format
+    handlers=[
+        logging.FileHandler("scraper_logs.txt"),  # Log to a file
+        logging.StreamHandler()  # Optional: Log to the terminal
+    ]
+=======
 from json_sidecar import build_sidecar_schema, write_sidecar_json, copy_sidecars_from_staging
 from elasticsearch import Elasticsearch
 from datetime import datetime
@@ -28,6 +40,7 @@ es = Elasticsearch(
     "http://localhost:9200",
     basic_auth=("elastic", "w8bLFnhadBAWxnsiK9mv"),
     verify_certs=False  # Disable certificate verification for local testing
+
 )
 
 # ========== colored logging (drop-in) ==========
@@ -43,10 +56,29 @@ except Exception:
 
 def _log(prefix, color, msg, dim=False):
     pre = f"{color}[{prefix}]{Style.RESET_ALL} "
+    log_message = f"[{prefix}] {msg}"
+
+    # Print to the terminal with color
     if dim:
         print(f"{Fore.WHITE}{Style.DIM}{pre}{msg}{Style.RESET_ALL}")
     else:
         print(pre + msg)
+
+    # Log to the file (without color)
+    if prefix == "STEP":
+        logging.info(log_message)
+    elif prefix == "SEARCH":
+        logging.info(log_message)
+    elif prefix == "CANDIDATE":
+        logging.debug(log_message)
+    elif prefix == "OK":
+        logging.info(log_message)
+    elif prefix == "FILTER" or prefix == "SKIP":
+        logging.warning(log_message)
+    elif prefix == "ERR":
+        logging.error(log_message)
+    elif prefix == "DBG":
+        logging.debug(log_message)
 
 def log_step(msg):      _log("STEP",   Fore.CYAN,    msg)
 def log_search(msg):    _log("SEARCH", Fore.BLUE,    msg)
