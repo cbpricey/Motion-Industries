@@ -1,18 +1,28 @@
 "use client";
 
-import {useState} from "react"
-import ReviewCard, {ReviewCardProps} from "../../components/ReviewCard"
-import styles from "../page.module.css"
-import mockIndex from "../../data/mock_index.json"
+import { useEffect, useState } from "react";
+import ReviewCard, { ReviewCardProps } from "../../components/ReviewCard";
+import styles from "../page.module.css";
+import mockIndex from "../../data/mock_index.json";
 
 const foundSKUImages = mockIndex as ReviewCardProps[];
 
-
-export default function Review () {
-  const [selectedManufacturer, setSelectedManufacturer] = useState<string>("All");
-  const [pending, setPending] = useState(foundSKUImages);
+export default function Review() {
+  const [selectedManufacturer, setSelectedManufacturer] =
+    useState<string>("All");
+  const [pending, setPending] = useState<ReviewCardProps[]>([]);
   const [approved, setApproved] = useState<ReviewCardProps[]>([]);
   const [rejected, setRejected] = useState<ReviewCardProps[]>([]);
+
+  // Fetch from backend
+  useEffect(() => {
+    async function fetchProducts() {
+      const res = await fetch("/api/products");
+      const data = await res.json();
+      setPending(data); // seed pending with live Elastic docs
+    }
+    fetchProducts();
+  }, []);
 
   function handleApprove(id: number) {
     const review = pending.find((r) => r.id === id);
@@ -52,8 +62,10 @@ export default function Review () {
   }
 
   // Filter the pending list based on the selected manufacturer
-  const filteredPending = selectedManufacturer === "All" 
-    ? pending : pending.filter(r => r.manufacturer === selectedManufacturer);
+  const filteredPending =
+    selectedManufacturer === "All"
+      ? pending
+      : pending.filter((r) => r.manufacturer === selectedManufacturer);
 
   const current = filteredPending[0];
 
@@ -64,15 +76,19 @@ export default function Review () {
       <div className={styles.filterContainer}>
         <label htmlFor="manufacturerFilter">Filter by Manufacturer: </label>
         <select
-          id="manufacturerFilter" value={selectedManufacturer}
-          onChange={(e) => setSelectedManufacturer(e.target.value)}>
+          id="manufacturerFilter"
+          value={selectedManufacturer}
+          onChange={(e) => setSelectedManufacturer(e.target.value)}
+        >
           <option value="All">All</option>
-          {[...new Set(pending.map(r => r.manufacturer))].map(m => (
-            <option key={m} value={m}>{m}</option>
+          {[...new Set(pending.map((r) => r.manufacturer))].map((m) => (
+            <option key={m} value={m}>
+              {m}
+            </option>
           ))}
         </select>
       </div>
-      
+
       <section className={styles.pending}>
         <h2 className={styles.pendingTitle}>Pending Review</h2>
         <div className={styles.pendingCard}>
