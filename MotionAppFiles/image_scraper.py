@@ -323,25 +323,39 @@ def _classify_host_for_banner(host: str) -> str:
         return "Enterprise"
     return "non-OEM distributors"
 
-def start_scraping(excel_file, entry_range_x, entry_range_y, context_file,output_dir):
-    global current_entry_index, total_entry_count, man_website,running
+import json  # Ensure JSON is imported
+
+# Function to save metadata to a JSON file
+def save_metadata(metadata, output_dir):
+    metadata_file = os.path.join(output_dir, "sku_metadata.json")
+    try:
+        with open(metadata_file, "w") as f:
+            json.dump(metadata, f, indent=4)
+        log_ok(f"Metadata saved to {metadata_file}")
+    except Exception as e:
+        log_err(f"Failed to save metadata: {e}")
+
+# Update the start_scraping function to collect and save metadata
+def start_scraping(excel_file, entry_range_x, entry_range_y, context_file, output_dir):
+    global current_entry_index, total_entry_count, man_website, running
     entries = get_entries(excel_file)  # Fetch entries as tuples
     context_urls = get_context_urls(context_file)
     total_entry_count = len(entries) + 1
     last_manufacturer = ""
     repeat = 0
+    metadata = []  # List to store metadata for each SKU
+
     if entries and context_urls:
         for i, (manufacturer, part_number, description, id) in enumerate(entries):
             global should_stop
             if should_stop:
                 break
-            if (entry_range_x != 0 and i < entry_range_x -1) or (entry_range_y != 0 and entry_range_y <= i):
+            if (entry_range_x != 0 and i < entry_range_x - 1) or (entry_range_y != 0 and entry_range_y <= i):
                 continue
             if manufacturer != last_manufacturer:
                 ctx_hosts = []  # list of (host, source_type) where source_type in {"OEM","Enterprise","Distributor","Unknown"}
 
                 for row in context_urls:
-                    # Support both shapes: (MFR_NAME, URL) or (MFR_NAME, URL, ENTERPRISE_NAME)
                     if len(row) == 2:
                         url_mfr, url = row
                         enterprise_name = None
@@ -353,11 +367,6 @@ def start_scraping(excel_file, entry_range_x, entry_range_y, context_file,output
                         if not host:
                             continue
 
-                        # Classify EXACTLY from Excel:
-                        # - If ENTERPRISE_NAME equals MFR_NAME => OEM
-                        # - If ENTERPRISE_NAME present and != MFR_NAME => Enterprise
-                        # - If there's an explicit "Distributor" text in ENTERPRISE_NAME (optional), treat as Distributor
-                        # - Otherwise mark Unknown (will show "General" label if used)
                         if enterprise_name is not None:
                             if str(enterprise_name).strip().upper() == str(manufacturer).strip().upper():
                                 source_type = "OEM"
@@ -371,9 +380,7 @@ def start_scraping(excel_file, entry_range_x, entry_range_y, context_file,output
                         if (host, source_type) not in ctx_hosts:
                             ctx_hosts.append((host, source_type))
 
-                # OEM defaults to the first row marked OEM (or just first entry if none labeled)
                 if ctx_hosts:
-                    # Prefer an OEM entry as first con_url if present
                     oem_hosts = [h for (h, t) in ctx_hosts if t == "OEM"]
                     con_url = (oem_hosts[0] if oem_hosts else ctx_hosts[0][0])
                     man_website = True
@@ -389,7 +396,6 @@ def start_scraping(excel_file, entry_range_x, entry_range_y, context_file,output
 
             image_urls = []
 
-            # 1) OEM attempt (if we had at least one context host)
             if man_website and con_url:
                 log_stage("Searching OEM", f"site:{con_url} PN='{part_number}'")
                 image_urls = fetch_image_urls(manufacturer, part_number, con_url, description)
@@ -398,15 +404,12 @@ def start_scraping(excel_file, entry_range_x, entry_range_y, context_file,output
                 else:
                     log_skip("[OEM] Not found")
 
-            # 2) Enterprise/Distributor attempts (remaining context hosts)
             if (not image_urls) and ('ctx_hosts' in locals()) and len(ctx_hosts) >= 1:
-                # Try all hosts EXCEPT the one we already used for OEM (con_url)
                 tried_oem_host = con_url if (man_website and con_url) else None
                 for host, source_type in ctx_hosts:
                     if tried_oem_host and host == tried_oem_host:
                         continue
 
-                    # Stage banner in yellow based on exact source type
                     if source_type == "OEM":
                         log_stage("Searching OEM", f"site:{host} PN='{part_number}'")
                     elif source_type == "Enterprise":
@@ -416,7 +419,7 @@ def start_scraping(excel_file, entry_range_x, entry_range_y, context_file,output
                     else:
                         log_stage("Searching General", f"site:{host} PN='{part_number}'")
 
-                    man_website = (source_type == "OEM")  # only OEM marks this True
+                    man_website = (source_type == "OEM")
                     forced_site = None if man_website else host
 
                     image_urls = fetch_image_urls(manufacturer, part_number, host if man_website else "", description)
@@ -440,10 +443,8 @@ def start_scraping(excel_file, entry_range_x, entry_range_y, context_file,output
                         else:
                             log_skip("[General] Not found")
 
-                forced_site = None  # reset after loop
+                forced_site = None
 
-
-            # 3) Generic search fallback
             if not image_urls:
                 log_stage("General image search", f"MFR='{manufacturer}' PN='{part_number}'")
                 man_website = False
@@ -454,7 +455,6 @@ def start_scraping(excel_file, entry_range_x, entry_range_y, context_file,output
                 else:
                     log_skip("[General] Not found")
 
-            # Save if anything was found
             if image_urls:
                 log_step("Downloading images...")
                 download_images(image_urls, manufacturer, part_number, output_dir)
@@ -463,9 +463,20 @@ def start_scraping(excel_file, entry_range_x, entry_range_y, context_file,output
                 else:
                     resize_images(f"{output_dir}/images/staging", f"{output_dir}/images/generic/{manufacturer}/{id}")
                 clear_directory(output_dir)
+
+                # Add metadata for this SKU
+                metadata.append({
+                    "sku": id,
+                    "manufacturer": manufacturer,
+                    "part_number": part_number,
+                    "image_urls": image_urls
+                })
             else:
                 log_skip(f"No images found for {manufacturer} {part_number}.")
-    
+
+    # Save metadata to JSON file
+    save_metadata(metadata, output_dir)
+
     running = False
     run_button.config(state=tk.NORMAL)
     log_ok("Scraping finished.")
