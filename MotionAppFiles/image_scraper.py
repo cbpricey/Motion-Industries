@@ -21,6 +21,28 @@ import requests, certifi
 from io import BytesIO
 from colorama import init as _cinit, Fore, Style # type: ignore
 
+import logging
+
+# Configure logging to write to a file and optionally print to the terminal
+logging.basicConfig(
+    level=logging.DEBUG,  # Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+    format="%(asctime)s [%(levelname)s] %(message)s",  # Log format
+    handlers=[
+        logging.FileHandler("scraper_logs.txt"),  # Log to a file
+        logging.StreamHandler()  # Optional: Log to the terminal
+    ]
+=======
+from json_sidecar import build_sidecar_schema, write_sidecar_json, copy_sidecars_from_staging
+from elasticsearch import Elasticsearch
+from datetime import datetime
+
+es = Elasticsearch(
+    "http://localhost:9200",
+    basic_auth=("elastic", "w8bLFnhadBAWxnsiK9mv"),
+    verify_certs=False  # Disable certificate verification for local testing
+
+)
+
 # ========== colored logging (drop-in) ==========
 VERBOSE = True  # set False to reduce noise
 
@@ -34,10 +56,29 @@ except Exception:
 
 def _log(prefix, color, msg, dim=False):
     pre = f"{color}[{prefix}]{Style.RESET_ALL} "
+    log_message = f"[{prefix}] {msg}"
+
+    # Print to the terminal with color
     if dim:
         print(f"{Fore.WHITE}{Style.DIM}{pre}{msg}{Style.RESET_ALL}")
     else:
         print(pre + msg)
+
+    # Log to the file (without color)
+    if prefix == "STEP":
+        logging.info(log_message)
+    elif prefix == "SEARCH":
+        logging.info(log_message)
+    elif prefix == "CANDIDATE":
+        logging.debug(log_message)
+    elif prefix == "OK":
+        logging.info(log_message)
+    elif prefix == "FILTER" or prefix == "SKIP":
+        logging.warning(log_message)
+    elif prefix == "ERR":
+        logging.error(log_message)
+    elif prefix == "DBG":
+        logging.debug(log_message)
 
 def log_step(msg):      _log("STEP",   Fore.CYAN,    msg)
 def log_search(msg):    _log("SEARCH", Fore.BLUE,    msg)
@@ -231,12 +272,12 @@ def download_images(image_urls, manufacturer, part_number, output_dir):
             resp.raise_for_status()
             content = resp.content
 
-            #byte-size gate (~20KB)
+            # byte-size gate (~20KB)
             if len(content) < 20000:
                 log_skip(f"Too small (bytes={len(content)}): {img_url}")
                 continue
 
-            #pixel-size gate (>= 400x400)
+            # pixel-size gate (>= 400x400)
             try:
                 im = Image.open(BytesIO(content))
                 w, h = im.size
@@ -249,13 +290,56 @@ def download_images(image_urls, manufacturer, part_number, output_dir):
 
             stem = re.sub(r"[^A-Za-z0-9._-]+", "_", f"{manufacturer}_{part_number}_{idx}").strip("._-")[:120] or "img"
             img_path = os.path.join(save_dir, f"{stem}.jpg")
+
+            # save image bytes
             with open(img_path, "wb") as f:
                 f.write(content)
             log_ok(f"Saved: {img_path}")
             log_dbg(f"from: {img_url}")
+
+            # === NEW: write JSON sidecar next to staged image ===
+            try:
+                sidecar = build_sidecar_schema(
+                    image_path=img_path,
+                    image_bytes=content,
+                    im=im,                               # already opened above
+                    manufacturer=manufacturer,
+                    part_number=part_number,
+                    description=None,                    # pass real description later if desired
+                    image_url=img_url,
+                    page_url=None,
+                    referer=None,
+                )
+                sc_path = write_sidecar_json(img_path, sidecar)  # pretty=False for compact files
+                log_dbg(f"sidecar -> {sc_path}")
+            except Exception as se:
+                log_err(f"Sidecar write failed for {img_path}: {se}")
+            # === END NEW ===
+
+            # === NEW: index metadata in Elasticsearch ===
+            try:
+                index_image_metadata(img_url, manufacturer, part_number, None)  # Pass real description if desired
+            except Exception as ie:
+                log_err(f"Elasticsearch indexing failed for {img_url}: {ie}")
+            # === END NEW ===
+
         except Exception as e:
             log_err(f"Failed to download {img_url}: {e}")
+            
 
+def index_image_metadata(image_url, manufacturer, part_number, description):
+    doc = {
+        "image_url": image_url,
+        "manufacturer": manufacturer,
+        "part_number": part_number,
+        "description": description,
+        "timestamp": datetime.now()
+    }
+    try:
+        response = es.index(index="image_metadata", document=doc)
+        log_ok(f"Document indexed successfully: {response['_id']}")
+    except Exception as e:
+        log_err(f"Elasticsearch indexing failed for {image_url}: {e}")
 
 def clear_directory(output_dir):
     dir_path = f"{output_dir}/images/staging"
@@ -458,10 +542,17 @@ def start_scraping(excel_file, entry_range_x, entry_range_y, context_file, outpu
             if image_urls:
                 log_step("Downloading images...")
                 download_images(image_urls, manufacturer, part_number, output_dir)
+
+                staging_dir = f"{output_dir}/images/staging"
                 if man_website:
-                    resize_images(f"{output_dir}/images/staging", f"{output_dir}/images/specific/{manufacturer}/{id}")
+                    dest_dir = f"{output_dir}/images/specific/{manufacturer}/{id}"
                 else:
-                    resize_images(f"{output_dir}/images/staging", f"{output_dir}/images/generic/{manufacturer}/{id}")
+                    dest_dir = f"{output_dir}/images/generic/{manufacturer}/{id}"
+
+                resize_images(staging_dir, dest_dir)
+                # NEW: bring sidecars along to the final folder
+                copy_sidecars_from_staging(staging_dir, dest_dir)
+
                 clear_directory(output_dir)
 
                 # Add metadata for this SKU
