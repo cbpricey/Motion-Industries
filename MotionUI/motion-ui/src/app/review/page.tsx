@@ -3,12 +3,11 @@
 import { useEffect, useState } from "react";
 import ReviewCard, { ReviewCardProps } from "../../components/ReviewCard";
 import styles from "../page.module.css";
-import mockIndex from "../../data/mock_index.json";
-
-const foundSKUImages = mockIndex as ReviewCardProps[];
 
 export default function Review() {
   const [selectedManufacturer, setSelectedManufacturer] =
+    useState<string>("All");
+  const [selectedSKU, setSelectedSKU] =
     useState<string>("All");
   const [pending, setPending] = useState<ReviewCardProps[]>([]);
   const [approved, setApproved] = useState<ReviewCardProps[]>([]);
@@ -23,6 +22,20 @@ export default function Review() {
     }
     fetchProducts();
   }, []);
+
+  useEffect(() => {
+    if (
+      selectedSKU !== "All" &&
+      !pending.some((r) => r.sku === selectedSKU)
+    ) {
+      setSelectedSKU("All");
+    }
+  }, [pending, selectedSKU]);
+
+  useEffect(() => {
+    setSelectedSKU("All");
+  }, [selectedManufacturer]);
+
 
   function handleApprove(id: number) {
     const review = pending.find((r) => r.id === id);
@@ -62,10 +75,15 @@ export default function Review() {
   }
 
   // Filter the pending list based on the selected manufacturer
-  const filteredPending =
+  const filteredByManufacturer =
     selectedManufacturer === "All"
       ? pending
       : pending.filter((r) => r.manufacturer === selectedManufacturer);
+
+  const filteredPending =
+    selectedSKU === "All"
+      ? filteredByManufacturer
+      : filteredByManufacturer.filter((r) => r.sku === selectedSKU);
 
   const current = filteredPending[0];
 
@@ -96,6 +114,22 @@ export default function Review() {
                 {m}
               </option>
             ))}
+        </select>
+      </div>
+
+      <div className={styles.filterContainer}>
+        <label htmlFor="SKUFilter">Filter by SKU: </label>
+        <select
+          id="SKUFilter"
+          value={selectedSKU}
+          onChange={(e) => setSelectedSKU(e.target.value)}
+        >
+          <option value="All">All</option>
+          {[...new Set(filteredByManufacturer.map((r) => r.sku))].map((m) => (
+            <option key={m} value={m}>
+              {m}
+            </option>
+          ))}
         </select>
       </div>
 
