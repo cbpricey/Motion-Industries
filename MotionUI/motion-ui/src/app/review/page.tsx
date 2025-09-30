@@ -81,11 +81,21 @@ export default function Review() {
           onChange={(e) => setSelectedManufacturer(e.target.value)}
         >
           <option value="All">All</option>
-          {[...new Set(pending.map((r) => r.manufacturer))].map((m) => (
-            <option key={m} value={m}>
-              {m}
+          
+          {/* Still show the current selection even if it becomes empty*/}
+          {selectedManufacturer !== "All" && !pending.some(p => p.manufacturer === selectedManufacturer) && (
+            <option value={selectedManufacturer}>
+              {selectedManufacturer} (no pending)
             </option>
-          ))}
+          )}
+
+          {/* Show manufacturers that have pending items */}
+          {[...new Set(pending.map(r => r.manufacturer))]
+            .map(m => (
+              <option key={m} value={m}>
+                {m}
+              </option>
+            ))}
         </select>
       </div>
 
