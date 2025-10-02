@@ -18,6 +18,9 @@ export default function NavBar() {
           <li className={styles.item}>
             <Link href="/review">SKU Tinder</Link>
           </li>
+          <li className={styles.item}>
+            <Link href="/stats">Statistics</Link>
+          </li>
         </ul>
       </nav>
     </div>
