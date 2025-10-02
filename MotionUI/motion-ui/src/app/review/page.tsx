@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import ReviewCard, { ReviewCardProps } from "../../components/ReviewCard";
 import styles from "../page.module.css";
 
@@ -12,16 +13,34 @@ export default function Review() {
   const [pending, setPending] = useState<ReviewCardProps[]>([]);
   const [approved, setApproved] = useState<ReviewCardProps[]>([]);
   const [rejected, setRejected] = useState<ReviewCardProps[]>([]);
+  const searchParams = useSearchParams();
+  const selectedManufacturer = searchParams.get("manufacturer") ?? "All";
 
   // Fetch from backend
   useEffect(() => {
     async function fetchProducts() {
-      const res = await fetch("/api/products");
+      const url =
+        selectedManufacturer === "All"
+        ? `/api/products`
+        : `api/products?manufacturer=${encodeURIComponent(
+            selectedManufacturer
+        )}`;
+      const res = await fetch(url);
       const data = await res.json();
-      setPending(data); // seed pending with live Elastic docs
+      setPending(data);
     }
     fetchProducts();
-  }, []);
+  }, [selectedManufacturer]);
+
+  // async function updateApprove(SKUid: string) {
+  //   await client.update({
+  //     index: 'products',
+  //     id: SKUid,
+  //     doc: {
+  //       status: 'approved'
+  //     }
+  //   });
+  // }
 
   useEffect(() => {
     if (
@@ -43,11 +62,10 @@ export default function Review() {
 
     setApproved((prev) => [...prev, review]);
     setPending((prev) => prev.filter((r) => r.id !== id));
+    // updateApprove(id.toString())
   }
 
-  // function handleSearch(sku: string) {
-  //   const review[] = pending.find()
-  // }
+
 
   function handleReject(id: number) {
     const review = pending.find((r) => r.id === id);
@@ -132,6 +150,9 @@ export default function Review() {
           ))}
         </select>
       </div>
+      <h1 className={styles.header}>
+        Reviewing {selectedManufacturer} Products
+      </h1>
 
       <section className={styles.pending}>
         <h2 className={styles.pendingTitle}>Pending Review</h2>

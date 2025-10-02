@@ -16,7 +16,7 @@ export default function NavBar() {
             <Link href="/about">About</Link>
           </li>
           <li className={styles.item}>
-            <Link href="/review">SKU Tinder</Link>
+            <Link href="/select-manufacturer">SKU Tinder</Link>
           </li>
         </ul>
       </nav>

@@ -23,3 +23,6 @@ typing_extensions==4.12.2
 tzdata==2025.1
 urllib3==2.3.0
 wheel==0.45.1
+colorama==0.4.6
+imagehash==4.3.2
+elasticsearch==8.9.0
