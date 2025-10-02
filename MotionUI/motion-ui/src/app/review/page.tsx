@@ -6,8 +6,6 @@ import ReviewCard, { ReviewCardProps } from "../../components/ReviewCard";
 import styles from "../page.module.css";
 
 export default function Review() {
-  const [selectedManufacturer, setSelectedManufacturer] =
-    useState<string>("All");
   const [selectedSKU, setSelectedSKU] =
     useState<string>("All");
   const [pending, setPending] = useState<ReviewCardProps[]>([]);
@@ -107,33 +105,9 @@ export default function Review() {
 
   return (
     <main className={styles.main}>
-      <h1 className={styles.header}>Motion Industries Review Flow</h1>
-
-      <div className={styles.filterContainer}>
-        <label htmlFor="manufacturerFilter">Filter by Manufacturer: </label>
-        <select
-          id="manufacturerFilter"
-          value={selectedManufacturer}
-          onChange={(e) => setSelectedManufacturer(e.target.value)}
-        >
-          <option value="All">All</option>
-          
-          {/* Still show the current selection even if it becomes empty*/}
-          {selectedManufacturer !== "All" && !pending.some(p => p.manufacturer === selectedManufacturer) && (
-            <option value={selectedManufacturer}>
-              {selectedManufacturer} (no pending)
-            </option>
-          )}
-
-          {/* Show manufacturers that have pending items */}
-          {[...new Set(pending.map(r => r.manufacturer))]
-            .map(m => (
-              <option key={m} value={m}>
-                {m}
-              </option>
-            ))}
-        </select>
-      </div>
+      <h1 className={styles.header}>
+        Reviewing {selectedManufacturer} Products
+      </h1>
 
       <div className={styles.filterContainer}>
         <label htmlFor="SKUFilter">Filter by SKU: </label>
@@ -150,9 +124,6 @@ export default function Review() {
           ))}
         </select>
       </div>
-      <h1 className={styles.header}>
-        Reviewing {selectedManufacturer} Products
-      </h1>
 
       <section className={styles.pending}>
         <h2 className={styles.pendingTitle}>Pending Review</h2>
