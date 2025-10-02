@@ -1,28 +1,52 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import ReviewCard, { ReviewCardProps } from "../../components/ReviewCard";
 import styles from "../page.module.css";
 import mockIndex from "../../data/mock_index.json";
+import { Client } from "@elastic/elasticsearch"
+import { NextResponse, NextRequest } from "next/server";
 
-const foundSKUImages = mockIndex as ReviewCardProps[];
+
+// // Create Elastic client
+// const client = new Client({
+//   node: "http://localhost:9200", // Docker Elastic endpoint
+// });
+
 
 export default function Review() {
-  const [selectedManufacturer, setSelectedManufacturer] =
-    useState<string>("All");
   const [pending, setPending] = useState<ReviewCardProps[]>([]);
   const [approved, setApproved] = useState<ReviewCardProps[]>([]);
   const [rejected, setRejected] = useState<ReviewCardProps[]>([]);
+  const searchParams = useSearchParams();
+  const selectedManufacturer = searchParams.get("manufacturer") ?? "All";
 
   // Fetch from backend
   useEffect(() => {
     async function fetchProducts() {
-      const res = await fetch("/api/products");
+      const url =
+        selectedManufacturer === "All"
+        ? `/api/products`
+        : `api/products?manufacturer=${encodeURIComponent(
+            selectedManufacturer
+        )}`;
+      const res = await fetch(url);
       const data = await res.json();
-      setPending(data); // seed pending with live Elastic docs
+      setPending(data);
     }
     fetchProducts();
-  }, []);
+  }, [selectedManufacturer]);
+
+  // async function updateApprove(SKUid: string) {
+  //   await client.update({
+  //     index: 'products',
+  //     id: SKUid,
+  //     doc: {
+  //       status: 'approved'
+  //     }
+  //   });
+  // }
 
   function handleApprove(id: number) {
     const review = pending.find((r) => r.id === id);
@@ -30,11 +54,10 @@ export default function Review() {
 
     setApproved((prev) => [...prev, review]);
     setPending((prev) => prev.filter((r) => r.id !== id));
+    // updateApprove(id.toString())
   }
 
-  // function handleSearch(sku: string) {
-  //   const review[] = pending.find()
-  // }
+
 
   function handleReject(id: number) {
     const review = pending.find((r) => r.id === id);
@@ -71,23 +94,9 @@ export default function Review() {
 
   return (
     <main className={styles.main}>
-      <h1 className={styles.header}>Motion Industries Review Flow</h1>
-
-      <div className={styles.filterContainer}>
-        <label htmlFor="manufacturerFilter">Filter by Manufacturer: </label>
-        <select
-          id="manufacturerFilter"
-          value={selectedManufacturer}
-          onChange={(e) => setSelectedManufacturer(e.target.value)}
-        >
-          <option value="All">All</option>
-          {[...new Set(pending.map((r) => r.manufacturer))].map((m) => (
-            <option key={m} value={m}>
-              {m}
-            </option>
-          ))}
-        </select>
-      </div>
+      <h1 className={styles.header}>
+        Reviewing {selectedManufacturer} Products
+      </h1>
 
       <section className={styles.pending}>
         <h2 className={styles.pendingTitle}>Pending Review</h2>
