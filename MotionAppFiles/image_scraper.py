@@ -32,11 +32,10 @@ logging.basicConfig(
         logging.StreamHandler()  # Optional: Log to the terminal
     ]
 )
-    ])
-# =======
 from json_sidecar import build_sidecar_schema, write_sidecar_json, copy_sidecars_from_staging
 from elasticsearch import Elasticsearch
 from datetime import datetime
+
 
 es = Elasticsearch(
     "http://localhost:9200",
