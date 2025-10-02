@@ -4,18 +4,12 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import ReviewCard, { ReviewCardProps } from "../../components/ReviewCard";
 import styles from "../page.module.css";
-import mockIndex from "../../data/mock_index.json";
-import { Client } from "@elastic/elasticsearch"
-import { NextResponse, NextRequest } from "next/server";
-
-
-// // Create Elastic client
-// const client = new Client({
-//   node: "http://localhost:9200", // Docker Elastic endpoint
-// });
-
 
 export default function Review() {
+  const [selectedManufacturer, setSelectedManufacturer] =
+    useState<string>("All");
+  const [selectedSKU, setSelectedSKU] =
+    useState<string>("All");
   const [pending, setPending] = useState<ReviewCardProps[]>([]);
   const [approved, setApproved] = useState<ReviewCardProps[]>([]);
   const [rejected, setRejected] = useState<ReviewCardProps[]>([]);
@@ -47,6 +41,20 @@ export default function Review() {
   //     }
   //   });
   // }
+
+  useEffect(() => {
+    if (
+      selectedSKU !== "All" &&
+      !pending.some((r) => r.sku === selectedSKU)
+    ) {
+      setSelectedSKU("All");
+    }
+  }, [pending, selectedSKU]);
+
+  useEffect(() => {
+    setSelectedSKU("All");
+  }, [selectedManufacturer]);
+
 
   function handleApprove(id: number) {
     const review = pending.find((r) => r.id === id);
@@ -85,15 +93,63 @@ export default function Review() {
   }
 
   // Filter the pending list based on the selected manufacturer
-  const filteredPending =
+  const filteredByManufacturer =
     selectedManufacturer === "All"
       ? pending
       : pending.filter((r) => r.manufacturer === selectedManufacturer);
+
+  const filteredPending =
+    selectedSKU === "All"
+      ? filteredByManufacturer
+      : filteredByManufacturer.filter((r) => r.sku === selectedSKU);
 
   const current = filteredPending[0];
 
   return (
     <main className={styles.main}>
+      <h1 className={styles.header}>Motion Industries Review Flow</h1>
+
+      <div className={styles.filterContainer}>
+        <label htmlFor="manufacturerFilter">Filter by Manufacturer: </label>
+        <select
+          id="manufacturerFilter"
+          value={selectedManufacturer}
+          onChange={(e) => setSelectedManufacturer(e.target.value)}
+        >
+          <option value="All">All</option>
+          
+          {/* Still show the current selection even if it becomes empty*/}
+          {selectedManufacturer !== "All" && !pending.some(p => p.manufacturer === selectedManufacturer) && (
+            <option value={selectedManufacturer}>
+              {selectedManufacturer} (no pending)
+            </option>
+          )}
+
+          {/* Show manufacturers that have pending items */}
+          {[...new Set(pending.map(r => r.manufacturer))]
+            .map(m => (
+              <option key={m} value={m}>
+                {m}
+              </option>
+            ))}
+        </select>
+      </div>
+
+      <div className={styles.filterContainer}>
+        <label htmlFor="SKUFilter">Filter by SKU: </label>
+        <select
+          id="SKUFilter"
+          value={selectedSKU}
+          onChange={(e) => setSelectedSKU(e.target.value)}
+        >
+          <option value="All">All</option>
+          {[...new Set(filteredByManufacturer.map((r) => r.sku))].map((m) => (
+            <option key={m} value={m}>
+              {m}
+            </option>
+          ))}
+        </select>
+      </div>
       <h1 className={styles.header}>
         Reviewing {selectedManufacturer} Products
       </h1>
