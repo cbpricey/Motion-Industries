@@ -34,6 +34,7 @@ export default function ReviewCard ({
         <section>
             <h1>{manufacturer}</h1>
             <h1>{title}</h1>
+            <h2>{sku}</h2>
             <img src={image_url} alt={imageAlt || "Product Image"} />
             <p>{description}</p>
             <p>Confidence: {confidence_score}</p>

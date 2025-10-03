@@ -1,28 +1,58 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import ReviewCard, { ReviewCardProps } from "../../components/ReviewCard";
 import styles from "../page.module.css";
-import mockIndex from "../../data/mock_index.json";
-
-const foundSKUImages = mockIndex as ReviewCardProps[];
 
 export default function Review() {
-  const [selectedManufacturer, setSelectedManufacturer] =
+  const [selectedSKU, setSelectedSKU] =
     useState<string>("All");
   const [pending, setPending] = useState<ReviewCardProps[]>([]);
   const [approved, setApproved] = useState<ReviewCardProps[]>([]);
   const [rejected, setRejected] = useState<ReviewCardProps[]>([]);
+  const searchParams = useSearchParams();
+  const selectedManufacturer = searchParams.get("manufacturer") ?? "All";
 
   // Fetch from backend
   useEffect(() => {
     async function fetchProducts() {
-      const res = await fetch("/api/products");
+      const url =
+        selectedManufacturer === "All"
+        ? `/api/products`
+        : `api/products?manufacturer=${encodeURIComponent(
+            selectedManufacturer
+        )}`;
+      const res = await fetch(url);
       const data = await res.json();
-      setPending(data); // seed pending with live Elastic docs
+      setPending(data);
     }
     fetchProducts();
-  }, []);
+  }, [selectedManufacturer]);
+
+  // async function updateApprove(SKUid: string) {
+  //   await client.update({
+  //     index: 'products',
+  //     id: SKUid,
+  //     doc: {
+  //       status: 'approved'
+  //     }
+  //   });
+  // }
+
+  useEffect(() => {
+    if (
+      selectedSKU !== "All" &&
+      !pending.some((r) => r.sku === selectedSKU)
+    ) {
+      setSelectedSKU("All");
+    }
+  }, [pending, selectedSKU]);
+
+  useEffect(() => {
+    setSelectedSKU("All");
+  }, [selectedManufacturer]);
+
 
   function handleApprove(id: number) {
     const review = pending.find((r) => r.id === id);
@@ -30,11 +60,10 @@ export default function Review() {
 
     setApproved((prev) => [...prev, review]);
     setPending((prev) => prev.filter((r) => r.id !== id));
+    // updateApprove(id.toString())
   }
 
-  // function handleSearch(sku: string) {
-  //   const review[] = pending.find()
-  // }
+
 
   function handleReject(id: number) {
     const review = pending.find((r) => r.id === id);
@@ -62,26 +91,33 @@ export default function Review() {
   }
 
   // Filter the pending list based on the selected manufacturer
-  const filteredPending =
+  const filteredByManufacturer =
     selectedManufacturer === "All"
       ? pending
       : pending.filter((r) => r.manufacturer === selectedManufacturer);
+
+  const filteredPending =
+    selectedSKU === "All"
+      ? filteredByManufacturer
+      : filteredByManufacturer.filter((r) => r.sku === selectedSKU);
 
   const current = filteredPending[0];
 
   return (
     <main className={styles.main}>
-      <h1 className={styles.header}>Motion Industries Review Flow</h1>
+      <h1 className={styles.header}>
+        Reviewing {selectedManufacturer} Products
+      </h1>
 
       <div className={styles.filterContainer}>
-        <label htmlFor="manufacturerFilter">Filter by Manufacturer: </label>
+        <label htmlFor="SKUFilter">Filter by SKU: </label>
         <select
-          id="manufacturerFilter"
-          value={selectedManufacturer}
-          onChange={(e) => setSelectedManufacturer(e.target.value)}
+          id="SKUFilter"
+          value={selectedSKU}
+          onChange={(e) => setSelectedSKU(e.target.value)}
         >
           <option value="All">All</option>
-          {[...new Set(pending.map((r) => r.manufacturer))].map((m) => (
+          {[...new Set(filteredByManufacturer.map((r) => r.sku))].map((m) => (
             <option key={m} value={m}>
               {m}
             </option>

@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import { Client } from "@elastic/elasticsearch";
 
 interface ProductDoc {
@@ -12,24 +12,30 @@ interface ProductDoc {
   status: string;
 }
 
-
 // Create Elastic client
 const client = new Client({
   node: "http://localhost:9200", // Docker Elastic endpoint
 });
 
 // Handle GET /api/products
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const manufacturer = searchParams.get("manufacturer");
+
   try {
-    // Query all products
+    const query = manufacturer
+      ? { match: { manufacturer } }
+      : { match_all: {} };
+
     const result = await client.search<ProductDoc>({
       index: "products",
       size: 20,
-      query: { match_all: {} },
+      query,
     });
 
-    // Result hits
-    const docs = result.hits.hits.map((hit) => hit._source);
+    const docs: ProductDoc[] = result.hits.hits
+      .map((hit) => hit._source)
+      .filter((doc): doc is ProductDoc => !!doc);
 
     return NextResponse.json(docs);
   } catch (error) {
