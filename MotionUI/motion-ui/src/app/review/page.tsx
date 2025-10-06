@@ -20,7 +20,7 @@ export default function Review() {
       const url =
         selectedManufacturer === "All"
         ? `/api/products`
-        : `api/products?manufacturer=${encodeURIComponent(
+        : `/api/products?manufacturer=${encodeURIComponent(
             selectedManufacturer
         )}`;
       const res = await fetch(url);
@@ -50,8 +50,33 @@ export default function Review() {
   }, [pending, selectedSKU]);
 
   useEffect(() => {
-    setSelectedSKU("All");
+    async function fetchProducts() {
+      try {
+        const url =
+          selectedManufacturer === "All"
+            ? "/api/products"
+            : `/api/products?manufacturer=${encodeURIComponent(
+                selectedManufacturer
+              )}`;
+  
+        console.log("Fetching:", url); // sanity check
+  
+        const res = await fetch(url, { cache: "no-store" });
+  
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+  
+        const data = await res.json();
+        setPending(data);
+      } catch (err) {
+        console.error("Failed to fetch products:", err);
+      }
+    }
+  
+    fetchProducts();
   }, [selectedManufacturer]);
+  
 
 
   function handleApprove(id: number) {

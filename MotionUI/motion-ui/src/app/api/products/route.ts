@@ -1,6 +1,8 @@
 import { NextResponse, NextRequest } from "next/server";
 import { Client } from "@elastic/elasticsearch";
 
+export const runtime = "nodejs"; // ES client needs Node, not Edge
+
 interface ProductDoc {
   id: number;
   manufacturer: string;
@@ -24,18 +26,30 @@ export async function GET(req: NextRequest) {
 
   try {
     const query = manufacturer
-      ? { match: { manufacturer } }
+      ? { match: { manufacturer } } // minimal: analyzed text match
       : { match_all: {} };
 
-    const result = await client.search<ProductDoc>({
-      index: "products",
+    const result = await client.search({
+      index: "image_metadata", // your sample index name
       size: 20,
       query,
     });
 
-    const docs: ProductDoc[] = result.hits.hits
-      .map((hit) => hit._source)
-      .filter((doc): doc is ProductDoc => !!doc);
+    const docs: ProductDoc[] = result.hits.hits.map((hit, i) => {
+      const src: any = hit._source ?? {};
+      return {
+        id: i, // minimal: numeric key for UI; fine for a first run
+        manufacturer: src.manufacturer ?? "Unknown",
+        sku: src.part_number ?? "Unknown",
+        title:
+          src.description ??
+          `${src.manufacturer ?? ""} ${src.part_number ?? ""}`.trim(),
+        description: src.description ?? "",
+        image_url: src.image_url ?? "",
+        confidence_score: (hit as any)._score ?? 0,
+        status: "pending",
+      };
+    });
 
     return NextResponse.json(docs);
   } catch (error) {
