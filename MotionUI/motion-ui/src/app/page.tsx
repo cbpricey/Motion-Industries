@@ -193,9 +193,9 @@ export default function Home() {
                   <h3 className="text-2xl font-black text-white mb-2 uppercase tracking-wide">
                     {member.name}
                   </h3>
-                  <p className="text-gray-400 text-sm uppercase tracking-wider font-bold">
+                  {/* <p className="text-gray-400 text-sm uppercase tracking-wider font-bold">
                     {member.role}
-                  </p>
+                  </p> */}
                 </div>
               </div>
             ))}
