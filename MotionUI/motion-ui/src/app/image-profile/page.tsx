@@ -59,39 +59,10 @@ export default function ImageProfilePage() {
       setLoading(true);
       setError(null);
       try {
-        // Try dedicated image endpoint first
-        const qp = new URLSearchParams();
-        if (id) qp.set("id", id);
-        else if (image) qp.set("image_url", image);
-        else if (skuQS) qp.set("sku_number", skuQS);
-
-        const url = `/api/image?${qp.toString()}`;
-        console.log("[ImageProfile] fetch:", url);
-        let rec: ItemRecord | null = null;
-
-        try {
-          const res = await fetch(url, { cache: "no-store" });
-          if (res.ok) {
-            const data = await res.json();
-            rec = Array.isArray(data) ? data[0] : data;
-          }
-        } catch {
-          // ignore if endpoint not present
-        }
-
-        // Fallback to /api/products if /api/image not available or empty
-        if (!rec) {
-          const fallQp = new URLSearchParams();
-          if (image) fallQp.set("image_url", image);
-          else if (id) fallQp.set("id", String(id));
-          else if (skuQS) fallQp.set("sku_number", skuQS);
-          const alt = `/api/products?${fallQp.toString()}`;
-          console.log("[ImageProfile] fallback fetch:", alt);
-          const altRes = await fetch(alt, { cache: "no-store" });
-          if (!altRes.ok) throw new Error(`HTTP ${altRes.status}`);
-          const arr = await altRes.json();
-          rec = Array.isArray(arr) ? arr[0] : arr;
-        }
+        console.log("[ImageProfile] fetch:", id);
+        const res = await fetch(`/api/products/${id}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const rec = await res.json();
 
         setRecord(rec ?? null);
 
@@ -306,13 +277,7 @@ export default function ImageProfilePage() {
                 <button
                   key={(s as any).image_url ?? i}
                   onClick={() => {
-                    const qp = new URLSearchParams();
-                    qp.set("image", (s as any).image_url);
-                    if ((s as any).id) qp.set("id", String((s as any).id));
-                    if (sku) qp.set("sku", sku);
-                    if (display.manufacturer) qp.set("manufacturer", String(display.manufacturer));
-                    qp.set("back", back);
-                    router.push(`/image-profile?${qp.toString()}`);
+                    router.push(`/image-profile?id=${(s as any).id}&back=${back}`);
                   }}
                   className="overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950 p-2 hover:border-red-600"
                 >

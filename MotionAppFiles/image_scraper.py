@@ -334,6 +334,7 @@ def index_image_metadata(image_url, manufacturer, part_number, description, moti
         "manufacturer": manufacturer,
         "part_number": part_number,
         "description": description,
+        "status": "pending",
         "timestamp": datetime.now()
     }
     try:

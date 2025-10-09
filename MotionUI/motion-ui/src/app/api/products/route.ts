@@ -71,7 +71,7 @@ export async function GET(req: NextRequest) {
         String(src.id ?? hit._id);
 
       return {
-        id: i, // UI key; if you have a stable numeric id, use that instead
+        id: hit._id,
         manufacturer: src.manufacturer ?? "Unknown",
         sku_number: normalizedSku,
         title:
@@ -80,15 +80,43 @@ export async function GET(req: NextRequest) {
         description: src.description ?? "",
         image_url: src.image_url ?? "",
         confidence_score: hit._score ?? 0,
-        status: "pending",
+        status: src.status ?? "pending",
       };
     });
 
     return NextResponse.json(docs);
-  } catch (error) {
-    console.error("Elastic query failed:", error);
+  } catch (e) {
+    console.error("Elastic query failed:", e);
     return NextResponse.json(
       { error: "Failed to fetch products" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PATCH(req: NextRequest) {
+  try {
+    const { id, status } = await req.json();
+
+    if (!id || !status) {
+      return NextResponse.json(
+        { error: "Both id and status are required" },
+        { status: 400 }
+      );
+    }
+
+    const result = await client.update({
+      index: "image_metadata",
+      id,
+      doc: { status },
+      doc_as_upsert: false, // only update existing docs
+    });
+
+    return NextResponse.json({ success: true, result });
+  } catch (e) {
+    console.error("Failed to update status:", e);
+    return NextResponse.json(
+      { error: "Failed to update status" },
       { status: 500 }
     );
   }
