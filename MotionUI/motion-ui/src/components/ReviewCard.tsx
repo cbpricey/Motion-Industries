@@ -1,6 +1,7 @@
 import "./ReviewCard.css";
 
 type ReviewCardProps = {
+    sku_number: string;
     id: number;
     manufacturer: string;
     sku: string;

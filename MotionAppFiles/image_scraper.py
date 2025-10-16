@@ -259,7 +259,7 @@ def safe_name(s: str, max_len=120) -> str:
 
 
 # Function to download images and name them "ManufacturerName"_"PartNumber"
-def download_images(image_urls, manufacturer, part_number, output_dir):
+def download_images(image_urls, manufacturer, part_number, output_dir, motion_id):
     save_dir = f"{output_dir}/images/staging"
     os.makedirs(save_dir, exist_ok=True)
     sess = requests.Session()
@@ -318,7 +318,7 @@ def download_images(image_urls, manufacturer, part_number, output_dir):
 
             # === NEW: index metadata in Elasticsearch ===
             try:
-                index_image_metadata(img_url, manufacturer, part_number, None)  # Pass real description if desired
+                index_image_metadata(img_url, manufacturer, part_number, None, motion_id)  # Pass real description if desired
             except Exception as ie:
                 log_err(f"Elasticsearch indexing failed for {img_url}: {ie}")
             # === END NEW ===
@@ -327,12 +327,14 @@ def download_images(image_urls, manufacturer, part_number, output_dir):
             log_err(f"Failed to download {img_url}: {e}")
             
 
-def index_image_metadata(image_url, manufacturer, part_number, description):
+def index_image_metadata(image_url, manufacturer, part_number, description, motion_id):
     doc = {
+        "sku_number": f"{motion_id}",
         "image_url": image_url,
         "manufacturer": manufacturer,
         "part_number": part_number,
         "description": description,
+        "status": "pending",
         "timestamp": datetime.now()
     }
     try:
@@ -430,7 +432,7 @@ def start_scraping(excel_file, entry_range_x, entry_range_y, context_file, outpu
     metadata = []  # List to store metadata for each SKU
 
     if entries and context_urls:
-        for i, (manufacturer, part_number, description, id) in enumerate(entries):
+        for i, (manufacturer, part_number, description, motion_id) in enumerate(entries):
             global should_stop
             if should_stop:
                 break
@@ -476,7 +478,7 @@ def start_scraping(excel_file, entry_range_x, entry_range_y, context_file, outpu
 
             current_entry_index = i + 1
             tk.Label(frame, text=f"Entry ({current_entry_index}/{total_entry_count})").grid(row=6, column=1, padx=10, pady=10)
-            log_step(f"({i + 1}/{len(entries)}) Searching images for: {manufacturer} | PN='{part_number}' | id={id}")
+            log_step(f"({i + 1}/{len(entries)}) Searching images for: {manufacturer} | PN='{part_number}' | id={motion_id}")
 
             image_urls = []
 
@@ -541,13 +543,13 @@ def start_scraping(excel_file, entry_range_x, entry_range_y, context_file, outpu
 
             if image_urls:
                 log_step("Downloading images...")
-                download_images(image_urls, manufacturer, part_number, output_dir)
+                download_images(image_urls, manufacturer, part_number, output_dir, motion_id)
 
                 staging_dir = f"{output_dir}/images/staging"
                 if man_website:
-                    dest_dir = f"{output_dir}/images/specific/{manufacturer}/{id}"
+                    dest_dir = f"{output_dir}/images/specific/{manufacturer}/{motion_id}"
                 else:
-                    dest_dir = f"{output_dir}/images/generic/{manufacturer}/{id}"
+                    dest_dir = f"{output_dir}/images/generic/{manufacturer}/{motion_id}"
 
                 resize_images(staging_dir, dest_dir)
                 # NEW: bring sidecars along to the final folder
@@ -557,7 +559,7 @@ def start_scraping(excel_file, entry_range_x, entry_range_y, context_file, outpu
 
                 # Add metadata for this SKU
                 metadata.append({
-                    "sku": id,
+                    "sku": motion_id,
                     "manufacturer": manufacturer,
                     "part_number": part_number,
                     "image_urls": image_urls
