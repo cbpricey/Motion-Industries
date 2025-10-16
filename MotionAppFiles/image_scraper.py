@@ -259,7 +259,7 @@ def safe_name(s: str, max_len=120) -> str:
 
 
 # Function to download images and name them "ManufacturerName"_"PartNumber"
-def download_images(image_urls, manufacturer, part_number, output_dir, motion_id):
+def download_images(image_urls, manufacturer, part_number, output_dir, motion_id, description):
     save_dir = f"{output_dir}/images/staging"
     os.makedirs(save_dir, exist_ok=True)
     sess = requests.Session()
@@ -305,7 +305,7 @@ def download_images(image_urls, manufacturer, part_number, output_dir, motion_id
                     im=im,                               # already opened above
                     manufacturer=manufacturer,
                     part_number=part_number,
-                    description=None,                    # pass real description later if desired
+                    description=description,                    # pass real description later if desired
                     image_url=img_url,
                     page_url=None,
                     referer=None,
@@ -318,7 +318,7 @@ def download_images(image_urls, manufacturer, part_number, output_dir, motion_id
 
             # === NEW: index metadata in Elasticsearch ===
             try:
-                index_image_metadata(img_url, manufacturer, part_number, None, motion_id)  # Pass real description if desired
+                index_image_metadata(img_url, manufacturer, part_number, description, motion_id)
             except Exception as ie:
                 log_err(f"Elasticsearch indexing failed for {img_url}: {ie}")
             # === END NEW ===
@@ -542,7 +542,7 @@ def start_scraping(excel_file, entry_range_x, entry_range_y, context_file, outpu
 
             if image_urls:
                 log_step("Downloading images...")
-                download_images(image_urls, manufacturer, part_number, output_dir, motion_id)
+                download_images(image_urls, manufacturer, part_number, output_dir, motion_id, description)
 
                 staging_dir = f"{output_dir}/images/staging"
                 if man_website:

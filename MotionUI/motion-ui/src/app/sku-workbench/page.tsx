@@ -38,7 +38,7 @@ function PendingGrid({
         <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {items.map((item, idx) => (
             <ProductTile<Item>
-              key={`${(item as any).sku_number ?? (item as any).sku ?? "no-sku"}::${(item as any).image_url ?? idx}`}
+              key={item.id}
               item={item}
               onApprove={onApprove}
               onReject={onReject}
