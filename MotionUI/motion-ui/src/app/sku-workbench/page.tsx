@@ -123,20 +123,58 @@ export default function SkuWorkbench() {
     // re-run if URL params change (Next refreshes searchParams on nav)
   }, [manufacturer, selectedSku, skuPrefix, minConfidence, status, sort, from, to]);
 
-  function handleApprove(item: Item) {
+  async function handleApprove(item: Item) {
     console.log("[SKU Workbench] handleApprove", {
       sku: (item as any).sku_number ?? (item as any).sku,
       img: (item as any).image_url,
     });
-    setApproved((p) => [...p, item]);
-    setPending((p) => p.filter((r) => r !== item));
-  }
+    try {
+      const res = await fetch(`/api/products/${item.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: "approved",
+        }),
+      });
 
-  function handleReject(item: Item) {
+      if (!res.ok) {
+        console.error("Failed to update status:", await res.text());
+        return; // don’t modify UI state if update failed
+      }
+
+      setApproved((prev) => [...prev, item]);
+      setPending((prev) => prev.filter((r) => r !== item));
+  } catch (e) {
+    console.error("Error updating product status:", e);
+  }
+  setApproved((p) => [...p, item]);
+  setPending((p) => p.filter((r) => r !== item));
+}
+
+  async function handleReject(item: Item) {
     console.log("[SKU Workbench] handleReject", {
       sku: (item as any).sku_number ?? (item as any).sku,
       img: (item as any).image_url,
     });
+    try {
+      const res = await fetch(`/api/products/${item.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: "rejected",
+        }),
+      });
+
+      if (!res.ok) {
+        console.error("Failed to update status:", await res.text());
+        return; // don’t modify UI state if update failed
+      }
+
+      setApproved((prev) => [...prev, item]);
+      setPending((prev) => prev.filter((r) => r !== item));
+  } catch (err) {
+    console.error("Error updating product status:", err);
+  }
     setRejected((p) => [...p, item]);
     setPending((p) => p.filter((r) => r !== item));
   }

@@ -7,4 +7,14 @@
 __pycache__/
 
 # images found by scraper
-/Output/images/
+/Output/
+
+# scraper logs
+scraper_logs.txt
+/MotionAppFiles/scraper_logs.txt
+
+# ML Output
+/MlModel/Output/
+
+# ML csv
+/MlModel/*.csv

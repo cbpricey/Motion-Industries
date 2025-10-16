@@ -36,12 +36,7 @@ function ProductTileInner<T extends BaseItem>({
       typeof window !== "undefined"
         ? window.location.pathname + window.location.search
         : "/sku-workbench";
-    const qp = new URLSearchParams();
-    if (imageUrl) qp.set("image", imageUrl);
-    if (sku) qp.set("sku", String(sku));
-    if (manufacturer) qp.set("manufacturer", manufacturer);
-    qp.set("back", back);
-    router.push(`/image-profile?${qp.toString()}`);
+    router.push(`/image-profile?id=${item.id}&back=${back}`);
   }
 
   return (
