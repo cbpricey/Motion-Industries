@@ -47,6 +47,7 @@ export default function ImageProfilePage() {
   const [siblings, setSiblings] = useState<ItemRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isRejectModalOpen, setIsRejectModalOpen] = useState(false); // Modal state
 
   useEffect(() => {
     const onScroll = () => setScrollY(window.scrollY);
@@ -103,9 +104,19 @@ export default function ImageProfilePage() {
     console.log("[ImageProfile] Approve", { sku, image: display?.image_url });
     // TODO: POST to backend to persist status
   }
+
   function reject() {
-    console.log("[ImageProfile] Reject", { sku, image: display?.image_url });
+    setIsRejectModalOpen(true); // Open the modal
+  }
+
+  function confirmReject() {
+    console.log("[ImageProfile] Reject confirmed", { sku, image: display?.image_url });
+    setIsRejectModalOpen(false); // Close the modal
     // TODO: POST to backend to persist status
+  }
+
+  function cancelReject() {
+    setIsRejectModalOpen(false); // Close the modal
   }
 
   const metaPairs = useMemo(() => {
@@ -122,6 +133,30 @@ export default function ImageProfilePage() {
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-black text-white">
+      {/* Modal */}
+      {isRejectModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="w-full max-w-md rounded-lg bg-zinc-900 p-6 text-center">
+            <h2 className="mb-4 text-xl font-bold text-red-500">Are you sure?</h2>
+            <p className="mb-6 text-gray-300">Do you really want to reject this image? This action cannot be undone.</p>
+            <div className="flex justify-center gap-4">
+              <button
+                onClick={confirmReject}
+                className="rounded-md bg-red-600 px-4 py-2 text-sm font-bold text-white hover:bg-red-700"
+              >
+                Yes, Reject
+              </button>
+              <button
+                onClick={cancelReject}
+                className="rounded-md bg-gray-600 px-4 py-2 text-sm font-bold text-white hover:bg-gray-700"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Industrial grid background */}
       <div className="pointer-events-none fixed inset-0 opacity-10">
         <div

@@ -10,7 +10,6 @@ type Item =
   | (ReviewCardProps & { sku_number?: string; id?: number | string })
   | (ReviewCardProps & { sku?: string; id?: number | string });
 
-
 /* ───────────────────────── Grid ───────────────────────── */
 
 function PendingGrid({
@@ -71,6 +70,10 @@ export default function SkuWorkbench() {
   const [approved, setApproved] = useState<Item[]>([]);
   const [rejected, setRejected] = useState<Item[]>([]);
   const [scrollY, setScrollY] = useState(0);
+
+  // Modal state
+  const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
+  const [itemToReject, setItemToReject] = useState<Item | null>(null);
 
   useEffect(() => {
     const onScroll = () => setScrollY(window.scrollY);
@@ -152,12 +155,19 @@ export default function SkuWorkbench() {
 }
 
   async function handleReject(item: Item) {
+    setItemToReject(item); // Set the item to reject
+    setIsRejectModalOpen(true); // Open the modal
+  }
+
+  async function confirmReject() {
+    if (!itemToReject) return;
+
     console.log("[SKU Workbench] handleReject", {
-      sku: (item as any).sku_number ?? (item as any).sku,
-      img: (item as any).image_url,
+      sku: (itemToReject as any).sku_number ?? (itemToReject as any).sku,
+      img: (itemToReject as any).image_url,
     });
     try {
-      const res = await fetch(`/api/products/${item.id}`, {
+      const res = await fetch(`/api/products/${itemToReject.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -170,13 +180,19 @@ export default function SkuWorkbench() {
         return; // don’t modify UI state if update failed
       }
 
-      setApproved((prev) => [...prev, item]);
-      setPending((prev) => prev.filter((r) => r !== item));
-  } catch (err) {
-    console.error("Error updating product status:", err);
+      setRejected((prev) => [...prev, itemToReject]);
+      setPending((prev) => prev.filter((r) => r !== itemToReject));
+    } catch (err) {
+      console.error("Error updating product status:", err);
+    } finally {
+      setIsRejectModalOpen(false); // Close the modal
+      setItemToReject(null); // Clear the item to reject
+    }
   }
-    setRejected((p) => [...p, item]);
-    setPending((p) => p.filter((r) => r !== item));
+
+  function cancelReject() {
+    setIsRejectModalOpen(false); // Close the modal
+    setItemToReject(null); // Clear the item to reject
   }
 
   // Local filter by selectedSku (for dropdown switching)
@@ -196,6 +212,30 @@ export default function SkuWorkbench() {
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-black text-white">
+      {/* Modal */}
+      {isRejectModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="w-full max-w-md rounded-lg bg-zinc-900 p-6 text-center">
+            <h2 className="mb-4 text-xl font-bold text-red-500">Are you sure?</h2>
+            <p className="mb-6 text-gray-300">Do you really want to reject this item? This action cannot be undone.</p>
+            <div className="flex justify-center gap-4">
+              <button
+                onClick={confirmReject}
+                className="rounded-md bg-red-600 px-4 py-2 text-sm font-bold text-white hover:bg-red-700"
+              >
+                Yes, Reject
+              </button>
+              <button
+                onClick={cancelReject}
+                className="rounded-md bg-gray-600 px-4 py-2 text-sm font-bold text-white hover:bg-gray-700"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Background grid */}
       <div className="pointer-events-none fixed inset-0 opacity-10">
         <div
