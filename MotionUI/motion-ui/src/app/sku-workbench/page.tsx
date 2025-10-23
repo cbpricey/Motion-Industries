@@ -69,6 +69,8 @@ export default function SkuWorkbench() {
   const [pending, setPending] = useState<Item[]>([]);
   const [approved, setApproved] = useState<Item[]>([]);
   const [rejected, setRejected] = useState<Item[]>([]);
+  const [pendingApproved, setPendingApproved] = useState<Item[]>([]);
+  const [pendingRejected, setPendingRejected] = useState<Item[]>([]);
   const [scrollY, setScrollY] = useState(0);
 
   // Modal state
@@ -131,6 +133,23 @@ export default function SkuWorkbench() {
       sku: (item as any).sku_number ?? (item as any).sku,
       img: (item as any).image_url,
     });
+    
+    // Move to pending approval (intermediate state)
+    setPendingApproved((prev) => [...prev, item]);
+    setPending((prev) => prev.filter((r) => r !== item));
+  }
+
+  async function confirmApprove(item: Item) {
+    // Check privilege level
+    if (userPrivilegeLevel !== "admin") {
+      alert("Only administrators can finalize approvals.");
+      return;
+    }
+
+    console.log("[SKU Workbench] confirmApprove", {
+      sku: (item as any).sku_number ?? (item as any).sku,
+      img: (item as any).image_url,
+    });
     try {
       const res = await fetch(`/api/products/${item.id}`, {
         method: "PATCH",
@@ -142,24 +161,35 @@ export default function SkuWorkbench() {
 
       if (!res.ok) {
         console.error("Failed to update status:", await res.text());
-        return; // don’t modify UI state if update failed
+        return; // don't modify UI state if update failed
       }
-
+      
       setApproved((prev) => [...prev, item]);
-      setPending((prev) => prev.filter((r) => r !== item));
-  } catch (e) {
-    console.error("Error updating product status:", e);
+      setPendingApproved((prev) => prev.filter((r) => r !== item));
+    } catch (e) {
+      console.error("Error updating product status:", e);
+    }
   }
-  setApproved((p) => [...p, item]);
-  setPending((p) => p.filter((r) => r !== item));
-}
 
   async function handleReject(item: Item) {
+    // setItemToReject(item); // Set the item to reject
+    // setIsRejectModalOpen(true); // Open the modal
+        // Move to pending approval (intermediate state)
+      setPendingRejected((prev) => [...prev, item]);
+      setPending((prev) => prev.filter((r) => r !== item));
+  }
+
+  async function handlePendingReject(item: Item) {
     setItemToReject(item); // Set the item to reject
     setIsRejectModalOpen(true); // Open the modal
   }
 
   async function confirmReject() {
+    // Check privilege level
+    if (userPrivilegeLevel !== "admin") {
+      alert("Only administrators can finalize approvals.");
+      return;
+    }
     if (!itemToReject) return;
 
     console.log("[SKU Workbench] handleReject", {
@@ -321,17 +351,25 @@ export default function SkuWorkbench() {
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4 md:col-span-2">
+          <div className="grid grid-cols-5 gap-4 md:col-span-2">
             <div className="rounded-lg border-2 border-red-900/30 bg-zinc-900/50 p-4">
               <div className="text-2xl font-black text-red-600">{total}</div>
               <div className="text-xs font-bold uppercase tracking-wide text-gray-400">Visible Items</div>
             </div>
-            <div className="rounded-lg border-2 border-red-900/30 bg-zinc-900/50 p-4">
-              <div className="text-2xl font-black text-white">{approved.length}</div>
+            <div className="rounded-lg border-2 border-orange-900/30 bg-zinc-900/50 p-4">
+              <div className="text-2xl font-black text-orange-500">{pendingApproved.length}</div>
+              <div className="text-xs font-bold uppercase tracking-wide text-gray-400">Pending Approval</div>
+            </div>
+            <div className="rounded-lg border-2 border-green-900/30 bg-zinc-900/50 p-4">
+              <div className="text-2xl font-black text-green-500">{approved.length}</div>
               <div className="text-xs font-bold uppercase tracking-wide text-gray-400">Approved</div>
             </div>
+            <div className="rounded-lg border-2 border-orange-900/30 bg-zinc-900/50 p-4">
+              <div className="text-2xl font-black text-orange-500">{pendingRejected.length}</div>
+              <div className="text-xs font-bold uppercase tracking-wide text-gray-400">Pending Rejected</div>
+            </div>
             <div className="rounded-lg border-2 border-red-900/30 bg-zinc-900/50 p-4">
-              <div className="text-2xl font-black text-white">{rejected.length}</div>
+              <div className="text-2xl font-black text-red-500">{rejected.length}</div>
               <div className="text-xs font-bold uppercase tracking-wide text-gray-400">Rejected</div>
             </div>
           </div>

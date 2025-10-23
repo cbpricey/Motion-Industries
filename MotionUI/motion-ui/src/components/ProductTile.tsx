@@ -59,11 +59,12 @@ function ProductTileInner<T extends BaseItem>({
 
       {/* Meta */}
       <div className="relative z-10 mb-3 min-h-16 space-y-1">
-        <div className="truncate text-sm font-extrabold text-white">{manufacturer}</div>
-        <div className="truncate text-xs font-semibold uppercase tracking-wide text-red-400">
-          {sku}
-        </div>
+        <div className="truncate text-sm font-semibold text-gray-400">{manufacturer}</div>
+        <div className="truncate text-lg font-extrabold text-white">{sku}</div>
         <div className="line-clamp-2 text-xs text-gray-400">{item.title}</div>
+        <div className="truncate text-xs font-semibold text-gray-400">
+          ITEM_NO {item.id}
+        </div>
       </div>
 
       <div className="flex-1" />
