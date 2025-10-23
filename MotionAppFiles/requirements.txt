@@ -26,3 +26,4 @@ wheel==0.45.1
 colorama==0.4.6
 imagehash==4.3.2
 elasticsearch==8.9.0
+zipp>=3.19.1 # not directly required, pinned by Snyk to avoid a vulnerability
