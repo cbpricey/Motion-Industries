@@ -99,21 +99,63 @@ export default function ImageProfilePage() {
       console.log("[ImageProfile] copied:", text);
     });
   }
+async function approve() {
+  console.log("[ImageProfile] Approve", { sku, image: display?.image_url });
+  try {
+    const res = await fetch(`/api/products/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        status: "pending_approval",
+      }),
+    });
 
-  function approve() {
-    console.log("[ImageProfile] Approve", { sku, image: display?.image_url });
-    // TODO: POST to backend to persist status
-  }
+    if (!res.ok) {
+      console.error("Failed to update status:", await res.text());
+      // alert("Failed to update status to pending approval");
+      return;
+    }
 
-  function reject() {
-    setIsRejectModalOpen(true); // Open the modal
+    // Update local state
+    setRecord((prev) => prev ? { ...prev, status: "pending_approval" } : null);
+    // alert("Status updated to Pending Approval");
+  } catch (e) {
+    console.error("Error updating product status:", e);
+    alert("Error updating status");
   }
+}
 
-  function confirmReject() {
-    console.log("[ImageProfile] Reject confirmed", { sku, image: display?.image_url });
-    setIsRejectModalOpen(false); // Close the modal
-    // TODO: POST to backend to persist status
+function reject() {
+  setIsRejectModalOpen(true); // Open the modal
+}
+
+async function confirmReject() {
+  console.log("[ImageProfile] Reject confirmed", { sku, image: display?.image_url });
+  setIsRejectModalOpen(false); // Close the modal
+  
+  try {
+    const res = await fetch(`/api/products/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        status: "pending_rejected",
+      }),
+    });
+
+    if (!res.ok) {
+      console.error("Failed to update status:", await res.text());
+      alert("Failed to update status to pending rejected");
+      return;
+    }
+
+    // Update local state
+    setRecord((prev) => prev ? { ...prev, status: "pending_rejected" } : null);
+    // alert("Status updated to Pending Rejected");
+  } catch (e) {
+    console.error("Error updating product status:", e);
+    alert("Error updating status");
   }
+}
 
   function cancelReject() {
     setIsRejectModalOpen(false); // Close the modal
@@ -121,10 +163,13 @@ export default function ImageProfilePage() {
 
   const metaPairs = useMemo(() => {
     if (!display) return [] as Array<{ k: string; v: any }>;
-    const omit = new Set(["image_url"]);
+    const omit = new Set(["image_url", "title"]); // Exclude "title" from metadata
     return Object.entries(display)
       .filter(([k]) => !omit.has(k))
-      .map(([k, v]) => ({ k, v }));
+      .map(([k, v]) => ({
+        k: k === "id" ? "ITEM_NO" : k, // Change "id" to "ITEM_NO"
+        v,
+      }));
   }, [display]);
 
   if (!display) {
@@ -199,7 +244,7 @@ export default function ImageProfilePage() {
             Image Profile
           </div>
           <h1 className="mb-2 text-4xl font-black leading-none tracking-tighter md:text-5xl">
-            {(display.title as any) || "Product Image"}
+            {sku || "Product Image"} {/* Use SKU as the main title */}
           </h1>
           <div className="flex flex-wrap items-center gap-4 text-sm text-gray-400">
             {display.manufacturer && (
