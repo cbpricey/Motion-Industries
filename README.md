@@ -177,6 +177,9 @@ Test with `List.xlsx` to load manufacturer names, part numbers, and descriptions
 
 - Store images in the cloud
 
+## 🔐 Authentication Setup
+See [NEXTAUTH_SETUP.md](./docs/NEXTAUTH_SETUP.md) for how to configure GitHub/Google OAuth and seed your admin account.
+
 ## FAQ
 
 ### 1. Can I use this on Mac and Linux?

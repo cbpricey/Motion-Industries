@@ -69,3 +69,37 @@
 .item a:hover::after {
     width: 100%;
 }
+.navInner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 90%;
+    margin: 0 auto;
+}
+
+.authContainer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+}
+
+.authButton {
+    background: linear-gradient(90deg, #000000, #4a0000);
+    color: #ffffff;
+    font-size: 16px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border: 2px solid #ff0000;
+    border-radius: 6px;
+    padding: 8px 16px;
+    cursor: pointer;
+    transition: all 250ms ease;
+    box-shadow: 0 2px 6px rgba(255, 0, 0, 0.3);
+}
+
+.authButton:hover {
+    background: #ff0000;
+    color: #000000;
+    transform: scale(1.05);
+    box-shadow: 0 4px 10px rgba(255, 0, 0, 0.6);
+}

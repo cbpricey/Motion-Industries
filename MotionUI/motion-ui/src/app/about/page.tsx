@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { useState } from 'react';
 import { Cog, Zap, Users, Flame } from 'lucide-react';
@@ -32,7 +32,7 @@ export default function About() {
   return (
     <div className="min-h-screen bg-black">
       {/* Industrial Grid Background */}
-      <div className="fixed inset-0 opacity-10">
+      <div className="pointer-events-none fixed inset-0 opacity-10">
         <div className="absolute inset-0" style={{
           backgroundImage: 'linear-gradient(rgba(255,0,0,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(255,0,0,0.3) 1px, transparent 1px)',
           backgroundSize: '50px 50px'
