@@ -29,12 +29,17 @@ export default function SelectNavigatorPage() {
   const [dateFrom, setDateFrom] = useState<string>("");
   const [dateTo, setDateTo] = useState<string>("");
   const [scrollY, setScrollY] = useState(0);
+  const [manufacturers, setManufacturers] = useState<string[]>(["All"]);
 
-  // Static fallback manufacturers (replace with Elastic facet call when ready)
-  const manufacturers: ManufacturerOption[] = useMemo(
-    () => ["All", "3M", "Danfoss", "Emerson", "Timken", "SKF", "Parker"],
-    []
-  );
+  useEffect(() => {
+    async function fetchManufacturers() {
+      const res = await fetch("/api/facets?field=manufacturer");
+      const data = await res.json();
+      setManufacturers(["All", ...data]);
+    }
+    fetchManufacturers();
+  }, []);
+
 
   useEffect(() => {
     const onScroll = () => setScrollY(window.scrollY);

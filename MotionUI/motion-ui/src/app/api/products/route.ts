@@ -23,19 +23,21 @@ const client = new Client({
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const manufacturer = searchParams.get("manufacturer");
-  const sku_number = searchParams.get("sku_number");  // ← new
+  const sku_number = searchParams.get("sku_number");
+  const status = searchParams.get("status");
+  const sort = searchParams.get("sort");
 
   try {
-    // Build a flexible query that supports manufacturer and/or sku_number
     const must: any[] = [];
     const should: any[] = [];
 
+    // Filter by manufacturer
     if (manufacturer && manufacturer !== "All") {
-      must.push({ match: { manufacturer } }); // analyzed text
+      must.push({ term: { "manufacturer.keyword": manufacturer } });
     }
 
+    // Filter by SKU number
     if (sku_number && sku_number !== "All") {
-      // Try exact matches on common fields. Adjust to your index as needed.
       should.push(
         { term: { "sku_number.keyword": sku_number } },
         { term: { "part_number.keyword": sku_number } },
@@ -43,6 +45,12 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    // Filter by status (pending, approved, rejected)
+    if (status && ["pending", "approved", "rejected"].includes(status)) {
+      must.push({ term: { "status.keyword": status } });
+    }
+
+    // Build query
     const query =
       must.length === 0 && should.length === 0
         ? { match_all: {} }
@@ -53,18 +61,38 @@ export async function GET(req: NextRequest) {
             },
           };
 
+
+    // ES takes a list of sort parameters, in order of priority
+    let sortClause: any = [];
+    // But if we implement multiple parameters, this switch will need to be refactored
+    switch (sort) {
+      case "confidence_desc":
+        sortClause = [{ confidence: { order: "desc" } }];
+        break;
+      case "newest":
+        sortClause = [{ timestamp: { order: "desc" } }];
+        break;
+      case "oldest":
+        sortClause = [{ timestamp: { order: "asc" } }];
+        break;
+      case "relevance":
+      default:
+        // Relevance uses _score, which is default when no sort is set
+        sortClause = ["_score"];
+        break;
+    }
+
+    // Execute search
     const result = await client.search({
-      index: "image_metadata",   // ← your index
-      size: 100,                 // grab enough to fill the grid
+      index: "image_metadata",
+      size: 100,
       query,
+      sort: sortClause,
     });
 
-    const docs: ProductDoc[] = (result.hits.hits as any[]).map((hit, i) => {
+    const docs: ProductDoc[] = (result.hits.hits as any[]).map((hit) => {
       const src = hit._source ?? {};
-
-      // Normalize a sku_number for the UI:
-      // prefer explicit field, then part_number/sku, otherwise fallback to ES _id
-      const normalizedSku: string =
+      const normalizedSku =
         src.sku_number ??
         src.part_number ??
         src.sku ??
@@ -79,7 +107,7 @@ export async function GET(req: NextRequest) {
           `${src.manufacturer ?? ""} ${normalizedSku}`.trim(),
         description: src.description ?? "",
         image_url: src.image_url ?? "",
-        confidence_score: hit._score ?? 0,
+        confidence_score: src.confidence ?? 0,
         status: src.status ?? "pending",
       };
     });
@@ -89,34 +117,6 @@ export async function GET(req: NextRequest) {
     console.error("Elastic query failed:", e);
     return NextResponse.json(
       { error: "Failed to fetch products" },
-      { status: 500 }
-    );
-  }
-}
-
-export async function PATCH(req: NextRequest) {
-  try {
-    const { id, status } = await req.json();
-
-    if (!id || !status) {
-      return NextResponse.json(
-        { error: "Both id and status are required" },
-        { status: 400 }
-      );
-    }
-
-    const result = await client.update({
-      index: "image_metadata",
-      id,
-      doc: { status },
-      doc_as_upsert: false, // only update existing docs
-    });
-
-    return NextResponse.json({ success: true, result });
-  } catch (e) {
-    console.error("Failed to update status:", e);
-    return NextResponse.json(
-      { error: "Failed to update status" },
       { status: 500 }
     );
   }

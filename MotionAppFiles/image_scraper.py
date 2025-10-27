@@ -20,7 +20,6 @@ import re
 import requests, certifi
 from io import BytesIO
 from colorama import init as _cinit, Fore, Style # type: ignore
-
 import logging
 
 # Configure logging to write to a file and optionally print to the terminal
@@ -35,13 +34,18 @@ logging.basicConfig(
 from json_sidecar import build_sidecar_schema, write_sidecar_json, copy_sidecars_from_staging
 from elasticsearch import Elasticsearch
 from datetime import datetime
+from feature_engineer import analyze_image, compute_filename_features
+import numpy as np
+import joblib
 
 es = Elasticsearch(
     "http://localhost:9200",
     basic_auth=("elastic", "w8bLFnhadBAWxnsiK9mv"),
     verify_certs=False  # Disable certificate verification for local testing
-
 )
+
+MODEL_PATH = "image_classifier_confidence.pkl"
+model = joblib.load(MODEL_PATH)
 
 # ========== colored logging (drop-in) ==========
 VERBOSE = True  # set False to reduce noise
@@ -259,7 +263,7 @@ def safe_name(s: str, max_len=120) -> str:
 
 
 # Function to download images and name them "ManufacturerName"_"PartNumber"
-def download_images(image_urls, manufacturer, part_number, output_dir, motion_id):
+def download_images(image_urls, manufacturer, part_number, item_number, output_dir, motion_id):
     save_dir = f"{output_dir}/images/staging"
     os.makedirs(save_dir, exist_ok=True)
     sess = requests.Session()
@@ -297,6 +301,28 @@ def download_images(image_urls, manufacturer, part_number, output_dir, motion_id
             log_ok(f"Saved: {img_path}")
             log_dbg(f"from: {img_url}")
 
+            # Compute confidence score using ML Model
+            try:
+                resolution, entropy, sharpness, brightness = analyze_image(img_path)
+                item_no_match, manufacturer_similarity = compute_filename_features(img_url, item_number, manufacturer)
+
+                # Skip if metrics missing
+                if None in (resolution, entropy, sharpness, brightness, item_no_match, manufacturer_similarity):
+                    log_skip(f"Invalid metrics for {img_path}")
+                    continue
+
+                # Prepare feature vector
+                # If resolution feature is added back to model, will need to include it here too
+                X_new = np.array([[item_no_match, manufacturer_similarity, entropy, sharpness, brightness]])
+
+                # Predict confidence
+                confidence = float(model.predict_proba(X_new)[0, 1])
+                log_dbg(f"Confidence={confidence:.4f} for {img_path}")
+
+            except Exception as e:
+                log_err(f"Feature extraction or model inference failed for {img_path}: {e}")
+                confidence = None
+
             # === NEW: write JSON sidecar next to staged image ===
             try:
                 sidecar = build_sidecar_schema(
@@ -318,7 +344,7 @@ def download_images(image_urls, manufacturer, part_number, output_dir, motion_id
 
             # === NEW: index metadata in Elasticsearch ===
             try:
-                index_image_metadata(img_url, manufacturer, part_number, None, motion_id)  # Pass real description if desired
+                index_image_metadata(img_url, manufacturer, part_number, item_number, None, motion_id, confidence)
             except Exception as ie:
                 log_err(f"Elasticsearch indexing failed for {img_url}: {ie}")
             # === END NEW ===
@@ -327,14 +353,16 @@ def download_images(image_urls, manufacturer, part_number, output_dir, motion_id
             log_err(f"Failed to download {img_url}: {e}")
             
 
-def index_image_metadata(image_url, manufacturer, part_number, description, motion_id):
+def index_image_metadata(image_url, manufacturer, part_number, item_number, description, motion_id, confidence):
     doc = {
         "sku_number": f"{motion_id}",
         "image_url": image_url,
         "manufacturer": manufacturer,
         "part_number": part_number,
+        "item_number": item_number,
         "description": description,
         "status": "pending",
+        "confidence": confidence,
         "timestamp": datetime.now()
     }
     try:
@@ -432,7 +460,7 @@ def start_scraping(excel_file, entry_range_x, entry_range_y, context_file, outpu
     metadata = []  # List to store metadata for each SKU
 
     if entries and context_urls:
-        for i, (manufacturer, part_number, description, motion_id) in enumerate(entries):
+        for i, (manufacturer, part_number, item_number, description, motion_id) in enumerate(entries):
             global should_stop
             if should_stop:
                 break
@@ -543,7 +571,7 @@ def start_scraping(excel_file, entry_range_x, entry_range_y, context_file, outpu
 
             if image_urls:
                 log_step("Downloading images...")
-                download_images(image_urls, manufacturer, part_number, output_dir, motion_id)
+                download_images(image_urls, manufacturer, part_number, item_number, output_dir, motion_id)
 
                 staging_dir = f"{output_dir}/images/staging"
                 if man_website:

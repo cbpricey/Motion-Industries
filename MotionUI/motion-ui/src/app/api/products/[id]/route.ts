@@ -39,7 +39,7 @@ export async function GET(
         `${src.manufacturer ?? ""} ${src.sku_number ?? ""}`.trim(),
       description: src.description ?? "",
       image_url: src.image_url ?? "",
-      confidence_score: src.confidence_score ?? 0,
+      confidence_score: src.confidence ?? 0,
       status: src.status ?? "pending",
     };
 
