@@ -571,7 +571,7 @@ def start_scraping(excel_file, entry_range_x, entry_range_y, context_file, outpu
 
             if image_urls:
                 log_step("Downloading images...")
-                download_images(image_urls, manufacturer, part_number, item_number, output_dir, motion_id)
+                download_images(image_urls, manufacturer, part_number, item_number, output_dir, motion_id, description)
 
                 staging_dir = f"{output_dir}/images/staging"
                 if man_website:
