@@ -10,7 +10,7 @@ interface ProductDoc {
   title: string;
   description: string;
   image_url: string;
-  confidence_score: number; // from doc if present; else _score
+  confidence_score: number; // from doc if present
   status: string;
   created_at?: string;
 }
@@ -25,19 +25,23 @@ export async function GET(req: NextRequest) {
   // Filters your Navigator sends
   const manufacturer = searchParams.get("manufacturer");
   const sku_number = searchParams.get("sku_number");
-  const status = searchParams.get("status");
-  const sort = searchParams.get("sort");
+  const sku_prefix = searchParams.get("sku_prefix");
+  const min_confidence = searchParams.get("min_confidence"); // numeric field in ES, if available
+  const status = searchParams.get("status"); // pending|approved|rejected
+  const from = searchParams.get("from");     // ISO date
+  const to = searchParams.get("to");         // ISO date
+  const sort = searchParams.get("sort");     // relevance|confidence_desc|newest|oldest
 
   try {
     const must: any[] = [];
     const should: any[] = [];
 
-    // Filter by manufacturer
+    // Manufacturer (analyzed text ok for matching vendor names)
     if (manufacturer && manufacturer !== "All") {
-      must.push({ term: { "manufacturer.keyword": manufacturer } });
+      must.push({ match: { manufacturer } });
     }
 
-    // Filter by SKU number
+    // Exact SKU number (try common fields)
     if (sku_number && sku_number !== "All") {
       should.push(
         { term: { "sku_number.keyword": sku_number } },
@@ -46,31 +50,52 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Filter by status (pending, approved, rejected)
-    if (status && ["pending", "approved", "rejected"].includes(status)) {
+    // SKU prefix (prefix on keyword fields)
+    if (sku_prefix) {
+      must.push({
+        bool: {
+          should: [
+            { prefix: { "sku_number.keyword": sku_prefix } },
+            { prefix: { "part_number.keyword": sku_prefix } },
+            { prefix: { "sku.keyword": sku_prefix } },
+          ],
+          minimum_should_match: 1,
+        },
+      });
+    }
+
+    // Min confidence
+    if (min_confidence) {
+      const num = Number(min_confidence);
+      if (!Number.isNaN(num)) {
+        const scaled = num / 100; // scale 0–100 from frontend slider to 0–1 in ES
+        must.push({ range: { confidence: { gte: scaled } } });
+      }
+    }
+
+    // Status (exact match)
+    if (status && status !== "any") {
       must.push({ term: { "status.keyword": status } });
     }
 
-    // Build query
+    // Date range
+    if (from || to) {
+      must.push({
+        range: {
+          created_at: {
+            ...(from ? { gte: from } : {}),
+            ...(to ? { lte: to } : {}),
+          },
+        },
+      });
+    }
+
     const query =
       must.length === 0 && should.length === 0
         ? { match_all: {} }
         : { bool: { must, ...(should.length ? { should, minimum_should_match: 1 } : {}) } };
 
-    // Sorting
-    // - relevance (default): no sort, use ES _score
-    // - confidence_desc: sort by confidence_score desc, then _score desc
-    // - newest/oldest: sort by created_at
-    const sortClause: any[] | undefined =
-      sort === "confidence_desc"
-        ? [{ confidence_score: { order: "desc", missing: "_last", unmapped_type: "float" } }, { _score: { order: "desc" } }]
-        : sort === "newest"
-        ? [{ created_at: { order: "desc", missing: "_last", unmapped_type: "date" } }]
-        : sort === "oldest"
-        ? [{ created_at: { order: "asc", missing: "_last", unmapped_type: "date" } }]
-        : undefined;
-
-
+    
     // ES takes a list of sort parameters, in order of priority
     let sortClause: any = [];
     // But if we implement multiple parameters, this switch will need to be refactored
@@ -91,7 +116,6 @@ export async function GET(req: NextRequest) {
         break;
     }
 
-    // Execute search
     const result = await client.search({
       index: "image_metadata",
       size: 100,
@@ -106,12 +130,13 @@ export async function GET(req: NextRequest) {
         src.sku_number ?? src.part_number ?? src.sku ?? String(src.id ?? hit._id);
 
       return {
-        id: src.id ?? hit._id ?? i,
+        id: src.id ?? hit._id,
         manufacturer: src.manufacturer ?? "Unknown",
         sku_number: normalizedSku,
         title: src.title ?? src.description ?? `${src.manufacturer ?? ""} ${normalizedSku}`.trim(),
         description: src.description ?? "",
         image_url: src.image_url ?? "",
+        created_at: src.created_at,
         confidence_score: src.confidence ?? 0,
         status: src.status ?? "pending",
       };
@@ -121,5 +146,33 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     console.error("Elastic query failed:", error);
     return NextResponse.json({ error: "Failed to fetch products" }, { status: 500 });
+  }
+}
+
+export async function PATCH(req: NextRequest) {
+  try {
+    const { id, status } = await req.json();
+
+    if (!id || !status) {
+      return NextResponse.json(
+        { error: "Both id and status are required" },
+        { status: 400 }
+      );
+    }
+
+    const result = await client.update({
+      index: "image_metadata",
+      id,
+      doc: { status },
+      doc_as_upsert: false, // only update existing docs
+    });
+
+    return NextResponse.json({ success: true, result });
+  } catch (e) {
+    console.error("Failed to update status:", e);
+    return NextResponse.json(
+      { error: "Failed to update status" },
+      { status: 500 }
+    );
   }
 }

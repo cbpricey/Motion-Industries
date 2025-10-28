@@ -53,7 +53,8 @@ export async function GET(req: NextRequest) {
     if (min_confidence) {
       const num = Number(min_confidence);
       if (!Number.isNaN(num)) {
-        must.push({ range: { confidence_score: { gte: num } } });
+        const scaled = num / 100; // scale 0–100 from frontend slider to 0–1 in ES
+        must.push({ range: { confidence: { gte: scaled } } });
       }
     }
 
