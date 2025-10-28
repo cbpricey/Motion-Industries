@@ -263,7 +263,7 @@ def safe_name(s: str, max_len=120) -> str:
 
 
 # Function to download images and name them "ManufacturerName"_"PartNumber"
-def download_images(image_urls, manufacturer, part_number, item_number, output_dir, motion_id):
+def download_images(image_urls, manufacturer, part_number, item_number, output_dir, motion_id, description):
     save_dir = f"{output_dir}/images/staging"
     os.makedirs(save_dir, exist_ok=True)
     sess = requests.Session()
@@ -344,7 +344,7 @@ def download_images(image_urls, manufacturer, part_number, item_number, output_d
 
             # === NEW: index metadata in Elasticsearch ===
             try:
-                index_image_metadata(img_url, manufacturer, part_number, item_number, None, motion_id, confidence)
+                index_image_metadata(img_url, manufacturer, part_number, item_number, description, motion_id, confidence)
             except Exception as ie:
                 log_err(f"Elasticsearch indexing failed for {img_url}: {ie}")
             # === END NEW ===
