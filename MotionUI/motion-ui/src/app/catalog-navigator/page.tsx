@@ -31,17 +31,11 @@ export default function SelectNavigatorPage() {
   const [dateFrom, setDateFrom] = useState<string>("");
   const [dateTo, setDateTo] = useState<string>("");
   const [scrollY, setScrollY] = useState(0);
+
+  // Dynamic manufacturers
   const [manufacturers, setManufacturers] = useState<string[]>(["All"]);
-
-  useEffect(() => {
-    async function fetchManufacturers() {
-      const res = await fetch("/api/facets?field=manufacturer");
-      const data = await res.json();
-      setManufacturers(["All", ...data]);
-    }
-    fetchManufacturers();
-  }, []);
-
+  const [manuLoading, setManuLoading] = useState(false);
+  const [manuError, setManuError] = useState<string | null>(null);
 
   useEffect(() => {
     const onScroll = () => setScrollY(window.scrollY);
