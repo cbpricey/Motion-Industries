@@ -5,7 +5,6 @@ type ReviewCardProps = {
     id: number;
     manufacturer: string;
     sku: string;
-    title: string;
     description: string;
     confidence_score: number;
     image_url: string;
@@ -17,11 +16,10 @@ type ReviewCardProps = {
     onSearch?: () => void;
 }
 
-
-export default function ReviewCard ({ 
+export default function ReviewCard({ 
+    id,
     manufacturer,
     sku,
-    title, 
     description, 
     confidence_score, 
     image_url, 
@@ -33,9 +31,8 @@ export default function ReviewCard ({
 }: ReviewCardProps) {
     return (
         <section>
-            <h1>{manufacturer}</h1>
-            <h1>{title}</h1>
-            <h2>{sku}</h2>
+            <h1>ID: {id}</h1> {/* Display the id */}
+            <h1>{sku}</h1>
             <img src={image_url} alt={imageAlt || "Product Image"} />
             <p>{description}</p>
             <p>Confidence: {confidence_score}</p>
@@ -45,7 +42,7 @@ export default function ReviewCard ({
                 <button className="rejectButton" onClick={onReject}>❌ Reject</button>
             </div>
         </section>
-    )
+    );
 }
 
 export type { ReviewCardProps };

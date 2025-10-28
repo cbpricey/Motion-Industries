@@ -16,7 +16,7 @@ def get_entries(file_path):
     except Exception as e:
         print(f"Error reading Excel file: {e}")
         return []
-# excel_parse.py  (only this function changes)
+    
 def get_context_urls(file_path):
     try: 
         df = pd.read_excel(file_path)

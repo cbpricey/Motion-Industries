@@ -331,7 +331,7 @@ def download_images(image_urls, manufacturer, part_number, item_number, output_d
                     im=im,                               # already opened above
                     manufacturer=manufacturer,
                     part_number=part_number,
-                    description=None,                    # pass real description later if desired
+                    description=description,                    # pass real description later if desired
                     image_url=img_url,
                     page_url=None,
                     referer=None,

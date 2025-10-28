@@ -2,7 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Factory, Filter, Search, Settings2, GitBranch, PackageSearch, Layers, Calendar, ArrowRight, SortAsc, Database } from "lucide-react";
+import {
+  Factory, Filter, Search, Settings2, GitBranch, PackageSearch, Layers,
+  Calendar, ArrowRight, SortAsc, Database
+} from "lucide-react";
 
 /**
  * Select Navigator
@@ -12,8 +15,7 @@ import { Factory, Filter, Search, Settings2, GitBranch, PackageSearch, Layers, C
 
 // Types for form state
 type TraversalMode = "manufacturer" | "sku" | "confidence" | "recent";
-
-type ManufacturerOption = string; // e.g., "3M", "Danfoss" — could be fetched from Elastic facets
+type ManufacturerOption = string;
 
 export default function SelectNavigatorPage() {
   const router = useRouter();
@@ -47,14 +49,69 @@ export default function SelectNavigatorPage() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  // Build querystring for /review (or future /sku_workbench)
-  function buildQueryParams() {
+  // Fetch manufacturers dynamically based on current filters
+  useEffect(() => {
+    let cancelled = false;
+
+    type FacetBucket = { key: string; doc_count?: number };
+    type FacetResponse = { buckets?: FacetBucket[] } | string[];
+
+    async function fetchManufacturers() {
+      try {
+        setManuError(null);
+        setManuLoading(true);
+
+        const qp = new URLSearchParams();
+        qp.set("field", "manufacturer");
+        if (mode === "recent") {
+          if (dateFrom) qp.set("from", dateFrom);
+          if (dateTo) qp.set("to", dateTo);
+        }
+        if (mode === "confidence") qp.set("min_confidence", String(minConfidence));
+        if (status && status !== "any") qp.set("status", status);
+        if (skuPrefix) qp.set("sku_prefix", skuPrefix);
+
+        const res = await fetch(`/api/facets?${qp.toString()}`, { cache: "no-store" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        const data: FacetResponse = await res.json();
+
+        // Normalize to string[]
+        const dynamic: string[] = Array.isArray((data as any)?.buckets)
+          ? ((data as { buckets: FacetBucket[] }).buckets ?? []).map((b) => String(b.key))
+          : Array.isArray(data)
+          ? (data as string[]).map((s) => String(s))
+          : [];
+
+        const uniqueSorted: string[] = Array.from(new Set(dynamic)).sort((a, b) => a.localeCompare(b));
+        const next: string[] = ["All", ...uniqueSorted];
+
+        if (!cancelled) {
+          setManufacturers(next);
+          setManufacturer((prev) => (next.includes(prev) ? prev : "All"));
+        }
+      } catch (e: any) {
+        console.error("[Navigator] manufacturer facets failed:", e);
+        if (!cancelled) setManuError(e?.message ?? "Failed to load manufacturers");
+      } finally {
+        if (!cancelled) setManuLoading(false);
+      }
+    }
+
+    fetchManufacturers();
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, dateFrom, dateTo, minConfidence, status, skuPrefix]);
+
+  /* ---------- MISSING HELPERS (added) ---------- */
+
+  function buildQueryParams(): string {
     const qp = new URLSearchParams();
-  
-    // Add whatever state you expose in this page:
+
     if (manufacturer && manufacturer !== "All") qp.set("manufacturer", manufacturer);
     if (mode) qp.set("mode", mode);
-  
+
     if (mode === "sku") {
       if (sku.trim()) qp.set("sku_number", sku.trim());
       if (skuPrefix.trim()) qp.set("sku_prefix", skuPrefix.trim());
@@ -66,23 +123,20 @@ export default function SelectNavigatorPage() {
       if (dateFrom) qp.set("from", dateFrom);
       if (dateTo) qp.set("to", dateTo);
     }
-  
-    // shared filters
+
     if (status !== "any") qp.set("status", status);
     if (sortBy !== "relevance") qp.set("sort", sortBy);
-  
+
     return qp.toString();
   }
-  
+
   function handleStart() {
     const qs = buildQueryParams();
-    // Always go to SKU Workbench (your new page)
     const url = `/sku-workbench${qs ? `?${qs}` : ""}`;
     console.log("[Navigator] push →", url);
     router.push(url);
   }
 
-  // Little helper for a stat-like pill
   function Stat({ value, label }: { value: string; label: string }) {
     return (
       <div className="rounded-lg border-2 border-red-900/30 bg-zinc-900/50 p-4">
@@ -92,7 +146,9 @@ export default function SelectNavigatorPage() {
     );
   }
 
-  // Derived hint string
+  /* -------------------------------------------- */
+
+  // Derived hint (optional; kept from your earlier version)
   const hint = useMemo(() => {
     switch (mode) {
       case "manufacturer":
@@ -116,7 +172,7 @@ export default function SelectNavigatorPage() {
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-black text-white">
-      {/* Industrial grid bg (pointer-events-none so it never blocks clicks) */}
+      {/* Industrial grid bg */}
       <div className="pointer-events-none fixed inset-0 opacity-10">
         <div
           className="absolute inset-0"
@@ -159,38 +215,16 @@ export default function SelectNavigatorPage() {
         {/* Mode Cards */}
         <div className="mb-10 grid grid-cols-1 gap-4 md:grid-cols-4">
           {[
-            {
-              key: "manufacturer" as TraversalMode,
-              title: "By Manufacturer",
-              icon: <Factory className="h-5 w-5" />,
-              desc: "Pick a vendor, then drill into SKUs in Review.",
-            },
-            {
-              key: "sku" as TraversalMode,
-              title: "By SKU",
-              icon: <PackageSearch className="h-5 w-5" />,
-              desc: "Jump straight to an exact SKU or prefix.",
-            },
-            {
-              key: "confidence" as TraversalMode,
-              title: "By Confidence",
-              icon: <Settings2 className="h-5 w-5" />,
-              desc: "Filter items by model confidence score.",
-            },
-            {
-              key: "recent" as TraversalMode,
-              title: "Recently Added",
-              icon: <Calendar className="h-5 w-5" />,
-              desc: "Browse the latest ingested items.",
-            },
+            { key: "manufacturer" as TraversalMode, title: "By Manufacturer", icon: <Factory className="h-5 w-5" />, desc: "Pick a vendor, then drill into SKUs in Review." },
+            { key: "sku" as TraversalMode, title: "By SKU", icon: <PackageSearch className="h-5 w-5" />, desc: "Jump straight to an exact SKU or prefix." },
+            { key: "confidence" as TraversalMode, title: "By Confidence", icon: <Settings2 className="h-5 w-5" />, desc: "Filter items by model confidence score." },
+            { key: "recent" as TraversalMode, title: "Recently Added", icon: <Calendar className="h-5 w-5" />, desc: "Browse the latest ingested items." },
           ].map((c) => (
             <button
               key={c.key}
               onClick={() => setMode(c.key)}
               className={`group flex flex-col items-start gap-2 rounded-xl border-2 p-4 text-left transition-all duration-300 ${
-                mode === c.key
-                  ? "border-red-600 bg-zinc-900"
-                  : "border-red-900/50 bg-zinc-950 hover:border-red-600"
+                mode === c.key ? "border-red-600 bg-zinc-900" : "border-red-900/50 bg-zinc-950 hover:border-red-600"
               }`}
             >
               <div className="inline-flex items-center gap-2 text-red-500">{c.icon}<GitBranch className="h-4 w-4 opacity-60" /></div>
@@ -214,12 +248,16 @@ export default function SelectNavigatorPage() {
                   <select
                     value={manufacturer}
                     onChange={(e) => setManufacturer(e.target.value)}
-                    className="w-full rounded-md border-2 border-red-900/50 bg-black px-3 py-2 text-sm text-white outline-none transition focus:border-red-600"
+                    disabled={manuLoading}
+                    className="w-full rounded-md border-2 border-red-900/50 bg-black px-3 py-2 text-sm text-white outline-none transition disabled:opacity-60 focus:border-red-600"
                   >
                     {manufacturers.map((m) => (
                       <option key={m} value={m}>{m}</option>
                     ))}
                   </select>
+                </div>
+                <div className="mt-1 h-5 text-xs text-gray-500">
+                  {manuLoading ? "Loading manufacturers…" : manuError ? `Error: ${manuError}` : null}
                 </div>
               </label>
             )}
@@ -267,7 +305,6 @@ export default function SelectNavigatorPage() {
                     [&::-webkit-slider-runnable-track]:h-2
                     [&::-webkit-slider-runnable-track]:rounded-full
                     [&::-webkit-slider-runnable-track]:bg-zinc-800
-
                     [&::-webkit-slider-thumb]:appearance-none
                     [&::-webkit-slider-thumb]:h-4
                     [&::-webkit-slider-thumb]:w-4
@@ -276,18 +313,15 @@ export default function SelectNavigatorPage() {
                     [&::-webkit-slider-thumb]:bg-red-600
                     [&::-webkit-slider-thumb]:border-2
                     [&::-webkit-slider-thumb]:border-black
-
                     [&::-moz-range-track]:h-2
                     [&::-moz-range-track]:rounded-full
                     [&::-moz-range-track]:bg-zinc-800
-
                     [&::-moz-range-thumb]:h-4
                     [&::-moz-range-thumb]:w-4
                     [&::-moz-range-thumb]:rounded-full
                     [&::-moz-range-thumb]:bg-red-600
                     [&::-moz-range-thumb]:border-2
-                    [&::-moz-range-thumb]:border-black
-                  "
+                    [&::-moz-range-thumb]:border-black"
                 />
                 <div className="mt-1 text-xs text-gray-400">{minConfidence}</div>
               </label>
@@ -361,7 +395,7 @@ export default function SelectNavigatorPage() {
             <div>
               <div className="mb-2 text-sm font-black uppercase tracking-wider text-gray-300">Preview</div>
               <div className="rounded-xl border-2 border-red-900/50 bg-black p-4 font-mono text-xs text-gray-400">
-                <div className="mb-2 text-red-400">/review?…</div>
+                <div className="mb-2 text-red-400">/sku-workbench?…</div>
                 <code className="break-all">{buildQueryParams() || "(no filters)"}</code>
               </div>
             </div>
@@ -381,7 +415,7 @@ export default function SelectNavigatorPage() {
           </div>
         </div>
 
-        {/* Little stats row (purely decorative / can be wired later) */}
+        {/* Little stats row */}
         <div className="mb-16 grid grid-cols-2 gap-6 md:grid-cols-4">
           <Stat value="4" label="Traversal Modes" />
           <Stat value="∞" label="SKUs" />
@@ -393,7 +427,9 @@ export default function SelectNavigatorPage() {
       {/* Footer */}
       <div className="relative border-t-2 border-red-900 px-6 py-8">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between">
-          <div className="font-mono text-sm text-gray-500">© {new Date().getFullYear()} Capstone Group 2 • Navigator</div>
+          <div className="font-mono text-sm text-gray-500">
+            © {new Date().getFullYear()} Capstone Group 2 • Navigator
+          </div>
           <div className="flex items-center gap-2">
             <div className="h-2 w-2 animate-pulse rounded-full bg-green-600" />
             <span className="font-mono text-sm uppercase text-gray-500">Online</span>
