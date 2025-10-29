@@ -36,7 +36,7 @@ function ProductTileInner<T extends BaseItem>({
       typeof window !== "undefined"
         ? window.location.pathname + window.location.search
         : "/sku-workbench";
-    router.push(`/image-profile?id=${item.id}&back=${back}`);
+    router.push(`/image-profile?id=${item.id}&back=${encodeURIComponent(back)}`);
   }
 
   return (

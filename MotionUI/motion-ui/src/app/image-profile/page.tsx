@@ -227,7 +227,7 @@ async function confirmReject() {
         {/* Top bar */}
         <div className="mb-6 flex items-center justify-between">
           <button
-            onClick={() => (back ? router.push(back) : router.back())}
+            onClick={() =>  router.back()}
             className="inline-flex items-center gap-2 rounded-md border-2 border-red-900/50 bg-zinc-950 px-3 py-2 text-xs font-black uppercase tracking-wider text-gray-200 hover:border-red-600"
           >
             <ArrowLeft className="h-4 w-4" /> Back
@@ -357,7 +357,7 @@ async function confirmReject() {
                 <button
                   key={(s as any).image_url ?? i}
                   onClick={() => {
-                    router.push(`/image-profile?id=${(s as any).id}&back=${back}`);
+                    router.push(`/image-profile?id=${(s as any).id}&back=${encodeURIComponent(back)}`);
                   }}
                   className="overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950 p-2 hover:border-red-600"
                 >
