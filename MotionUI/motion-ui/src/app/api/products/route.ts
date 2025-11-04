@@ -129,6 +129,9 @@ export async function GET(req: NextRequest) {
       const normalizedSku: string =
         src.sku_number ?? src.part_number ?? src.sku ?? String(src.id ?? hit._id);
 
+      const confidence = src.confidence ?? 0
+      const confidence_score = confidence * 100
+
       return {
         id: src.id ?? hit._id,
         manufacturer: src.manufacturer ?? "Unknown",
@@ -137,7 +140,7 @@ export async function GET(req: NextRequest) {
         description: src.description ?? "",
         image_url: src.image_url ?? "",
         created_at: src.created_at,
-        confidence_score: src.confidence ?? 0,
+        confidence_score: confidence_score,
         status: src.status ?? "pending",
       };
     });

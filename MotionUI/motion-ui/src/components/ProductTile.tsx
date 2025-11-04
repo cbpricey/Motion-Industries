@@ -12,6 +12,7 @@ export interface BaseItem {
   sku?: string;
   id?: string | number;
   [key: string]: any; // allow extra fields like description, confidence_score, status, etc.
+  
 }
 
 type ProductTileProps<T extends BaseItem> = {
@@ -29,6 +30,7 @@ function ProductTileInner<T extends BaseItem>({
 
   const sku = item.sku_number ?? item.sku;
   const manufacturer = item.manufacturer ?? "";
+  const confidence_score = item.confidence_score ?? 0;
   const imageUrl = item.image_url ?? "";
 
   function goToImageProfile() {
@@ -39,6 +41,7 @@ function ProductTileInner<T extends BaseItem>({
     router.push(`/image-profile?id=${item.id}&back=${encodeURIComponent(back)}`);
   }
 
+  const color = `hsl(${(confidence_score / 100) * 120}, 100%, 50%)`;
   return (
     <div
       onClick={goToImageProfile}
@@ -61,10 +64,7 @@ function ProductTileInner<T extends BaseItem>({
       <div className="relative z-10 mb-3 min-h-16 space-y-1">
         <div className="truncate text-sm font-semibold text-gray-400">{manufacturer}</div>
         <div className="truncate text-lg font-extrabold text-white">{sku}</div>
-        <div className="line-clamp-2 text-xs text-gray-400">{item.title}</div>
-        <div className="truncate text-xs font-semibold text-gray-400">
-          ITEM_NO {item.id}
-        </div>
+        <div className="line-clamp-2 text-xs text-gray-400" style={{ color }}>{`Confidence: ${confidence_score.toFixed(2)}%`}</div>
       </div>
 
       <div className="flex-1" />
