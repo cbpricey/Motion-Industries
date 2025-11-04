@@ -24,6 +24,9 @@ export default function NavBar() {
             <li className={styles.item}>
               <Link href="/review_history">Review History</Link>
             </li>
+            <li className={styles.item}>
+              <Link href="/admin-crud">User Index</Link>
+            </li>
           </ul>
 
           {/* --- Authentication Controls --- */}
