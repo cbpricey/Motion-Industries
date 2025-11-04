@@ -27,9 +27,17 @@ export async function GET(req: NextRequest) {
       sort: [{ "created_at": "desc" }]
     });
 
-    const users = result.hits.hits.map((hit: any) => ({
+    interface UserDoc {
+      email: string;
+      name: string;
+      role: string;
+      created_at: string;
+      password?: string;
+    }
+
+    const users = result.hits.hits.map((hit) => ({
       id: hit._id,
-      ...(hit._source as any)
+      ...(hit._source as UserDoc)
     }));
 
     return NextResponse.json(users);
