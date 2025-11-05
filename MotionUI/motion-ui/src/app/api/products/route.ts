@@ -10,7 +10,7 @@ interface ProductDoc {
   title: string;
   description: string;
   image_url: string;
-  confidence_score: number; // from doc if present; else _score
+  confidence_score: number; // from doc if present
   status: string;
   created_at?: string;
 }
@@ -64,11 +64,12 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Min confidence (assumes you index a numeric field `confidence_score`)
+    // Min confidence
     if (min_confidence) {
       const num = Number(min_confidence);
       if (!Number.isNaN(num)) {
-        must.push({ range: { confidence_score: { gte: num } } });
+        const scaled = num / 100; // scale 0–100 from frontend slider to 0–1 in ES
+        must.push({ range: { confidence: { gte: scaled } } });
       }
     }
 
@@ -94,44 +95,49 @@ export async function GET(req: NextRequest) {
         ? { match_all: {} }
         : { bool: { must, ...(should.length ? { should, minimum_should_match: 1 } : {}) } };
 
-    // Sorting
-    // - relevance (default): no sort, use ES _score
-    // - confidence_desc: sort by confidence_score desc, then _score desc
-    // - newest/oldest: sort by created_at
-    const sortClause: any[] | undefined =
-      sort === "confidence_desc"
-        ? [{ confidence_score: { order: "desc", missing: "_last", unmapped_type: "float" } }, { _score: { order: "desc" } }]
-        : sort === "newest"
-        ? [{ created_at: { order: "desc", missing: "_last", unmapped_type: "date" } }]
-        : sort === "oldest"
-        ? [{ created_at: { order: "asc", missing: "_last", unmapped_type: "date" } }]
-        : undefined;
+    
+    // ES takes a list of sort parameters, in order of priority
+    let sortClause: any = [];
+    // But if we implement multiple parameters, this switch will need to be refactored
+    switch (sort) {
+      case "confidence_desc":
+        sortClause = [{ confidence: { order: "desc" } }];
+        break;
+      case "newest":
+        sortClause = [{ timestamp: { order: "desc" } }];
+        break;
+      case "oldest":
+        sortClause = [{ timestamp: { order: "asc" } }];
+        break;
+      case "relevance":
+      default:
+        // Relevance uses _score, which is default when no sort is set
+        sortClause = ["_score"];
+        break;
+    }
 
     const result = await client.search({
       index: "image_metadata",
       size: 100,
       query,
-      ...(sortClause ? { sort: sortClause } : {}),
+      sort: sortClause,
     });
 
-    const docs: ProductDoc[] = (result.hits.hits as any[]).map((hit, i) => {
+    const docs: ProductDoc[] = (result.hits.hits as any[]).map((hit) => {
       const src = hit._source ?? {};
 
       const normalizedSku: string =
         src.sku_number ?? src.part_number ?? src.sku ?? String(src.id ?? hit._id);
 
       return {
-        id: src.id ?? hit._id ?? i,
+        id: src.id ?? hit._id,
         manufacturer: src.manufacturer ?? "Unknown",
         sku_number: normalizedSku,
         title: src.title ?? src.description ?? `${src.manufacturer ?? ""} ${normalizedSku}`.trim(),
         description: src.description ?? "",
         image_url: src.image_url ?? "",
-        confidence_score:
-          typeof src.confidence_score === "number" ? src.confidence_score : (hit._score ?? 0),
-        status: String(src.status ?? "pending"),
         created_at: src.created_at,
-        confidence_score: hit._score ?? 0,
+        confidence_score: src.confidence ?? 0,
         status: src.status ?? "pending",
       };
     });

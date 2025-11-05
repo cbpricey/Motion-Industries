@@ -9,13 +9,13 @@ from tqdm import tqdm
 
 # === CONFIGURATION ===
 CSV_PATH = "Image_Cross_Reference.csv"          # CSV of image filenames + corresponding manufacturers and item no's
-IMAGE_DIR = "../../Capstone"                    # Directory containing image files
+IMAGE_DIR = "Output/Images"                    # Directory containing image files
 IMAGE_COLUMN = "PRIMARY_IMAGE"                  # Name of column containing image filenames,
 MFR_COLUMN = "MFR_NAME"                         # manufacturer names,
 ITEM_NO_COLUMN = "ITEM_NO"                      # item numbers
 OUTPUT_DIR = "Output"                           # Output CSV and log saved here
 os.makedirs(OUTPUT_DIR, exist_ok=True)          # Create output dir if it doesn't already exist                    
-OUTPUT_CSV_PATH = os.path.join(OUTPUT_DIR, "images_with_features.csv") # Output CSV file name
+OUTPUT_CSV_PATH = os.path.join(OUTPUT_DIR, "images_with_features2.csv") # Output CSV file name
 LOG_PATH = os.path.join(OUTPUT_DIR, "exceptions.log") # Any exceptions are logged in this file
 
 # === LOGGING SETUP ===
@@ -109,7 +109,13 @@ def compute_white_ratio(
 def analyze_image(image_path):
     """Return resolution, entropy, sharpness, brightness, white_ratio, white_border_ratio for one image."""
     if not os.path.exists(image_path):
-        return None, None, None, None, None, None
+        return None, None, None, None
+    
+    # Only process these file types
+    allowed_exts = {".png", ".jpg", ".jpeg", ".webp"}
+    ext = os.path.splitext(image_path)[-1].lower()
+    if ext not in allowed_exts:
+        return None, None, None, None
 
     try:
         image_bgr = cv2.imread(image_path)
