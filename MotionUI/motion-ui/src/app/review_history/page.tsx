@@ -9,52 +9,109 @@ import { Clock, CheckCircle2, XCircle, History, Filter } from "lucide-react";
  * — Consistent with Home / Catalog Navigator / About
  */
 
-type ReviewStatus = "accepted" | "rejected";
-type FilterType = "all" | ReviewStatus;
+// keep existing types, just extend the filter options
+type FilterType = "all" | "pending_approval" | "accepted" | "pending_rejected" | "rejected";
 
 interface ReviewHistoryItem {
-  id: number;
+  id: number | string;
   title: string;
   manufacturer: string;
   image_url: string;
-  status: ReviewStatus;
-  dateReviewed: string;
+  // include both pending_* states; exclude plain "pending" from history
+  status: "pending_approval" | "accepted" | "pending_rejected" | "rejected";
+  created_at?: string;
+  confidence_score: number;
 }
 
 export default function ReviewHistoryPage() {
   const [filter, setFilter] = useState<FilterType>("all");
+  const [reviewHistory, setReviewHistory] = useState<ReviewHistoryItem[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
   const [scrollY, setScrollY] = useState(0);
 
-  const mockData: ReviewHistoryItem[] = [
-    {
-      id: 1,
-      title: "Ball Bearing 6203ZZ",
-      manufacturer: "Danfoss",
-      image_url:
-        "https://static1.simpleflyingimages.com/wordpress/wp-content/uploads/2024/07/air-india-a350-900.jpg",
-      status: "accepted",
-      dateReviewed: "2025-10-10",
-    },
-    {
-      id: 2,
-      title: "Hydraulic Pump A10VSO",
-      manufacturer: "Bosch Rexroth",
-      image_url:
-        "https://www.shutterstock.com/shutterstock/photos/1743331667/display_1500/stock-vector-composition-of-air-vector-illustration-gas-structure-educational-scheme-with-separated-pie-1743331667.jpg",
-      status: "rejected",
-      dateReviewed: "2025-10-09",
-    },
-  ];
+  // Fetch data from the API
+  useEffect(() => {
+    const fetchReviewHistory = async () => {
+      try {
+        setLoading(true);
+        setError(null);
 
-  const filtered = mockData.filter(
-    (item) => filter === "all" || item.status === filter
-  );
+        // Build query parameters dynamically
+        const qp = new URLSearchParams();
 
+        // Map UI -> API:
+        // accepted => approved, rejected => rejected, pass-through the two pending_* states
+        const statusForApi =
+          filter === "accepted"
+            ? "approved"
+            : filter === "rejected"
+            ? "rejected"
+            : filter === "pending_approval"
+            ? "pending_approval"
+            : filter === "pending_rejected"
+            ? "pending_rejected"
+            : null;
+
+        if (statusForApi) qp.set("status", statusForApi);
+
+        qp.set("sort", "newest"); // Example: Sort by newest
+
+        const url = `/api/products?${qp.toString()}`;
+        console.log("[ReviewHistoryPage] fetch:", url);
+
+        const response = await fetch(url, { cache: "no-store" });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        const raw = await response.json();
+        const rows = Array.isArray(raw) ? raw : raw.items ?? [];
+
+        // Normalize, exclude *plain* pending (unreviewed) from history
+        const allowed = ["approved", "rejected", "pending_approval", "pending_rejected"];
+        const arr: ReviewHistoryItem[] = rows
+          .filter((d: any) => allowed.includes(d.status))
+          .map((d: any) => ({
+            id: d.id ?? d._id ?? crypto.randomUUID(),
+            title: d.title ?? d.product_title ?? "(Untitled)",
+            manufacturer: d.manufacturer ?? "",
+            image_url: d.image_url ?? d.thumbnail_url ?? "",
+            status:
+              d.status === "approved"
+                ? "accepted"
+                : d.status === "rejected"
+                ? "rejected"
+                : d.status, // keeps pending_approval / pending_rejected
+            created_at: d.reviewed_at ?? d.created_at ?? d.updated_at ?? null,
+            confidence_score: d.confidence_score ?? 0,
+          }));
+
+        setReviewHistory(arr);
+      } catch (err: any) {
+        console.error("[ReviewHistoryPage] Failed to fetch review history:", err);
+        setError(err.message || "An error occurred");
+        setReviewHistory([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchReviewHistory();
+  }, [filter]); // Re-run when the filter changes
+
+  // Background scroll parallax
   useEffect(() => {
     const onScroll = () => setScrollY(window.scrollY);
     window.addEventListener("scroll", onScroll);
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  // Local filter for current view
+  const filtered =
+    filter === "all" ? reviewHistory : reviewHistory.filter((r) => r.status === filter);
+
+  // Pretty label for buttons
+  const pretty = (s: FilterType) =>
+    s === "all" ? "All" : s.split("_").map(w => w[0].toUpperCase() + w.slice(1)).join(" ");
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-black text-white">
@@ -108,12 +165,13 @@ export default function ReviewHistoryPage() {
           </div>
         </div>
 
-        {/* Filters */}
+        {/* Filters (now includes pending_* buttons) */}
         <div className="mb-10 flex flex-wrap gap-3">
-          {(["all", "accepted", "rejected"] as FilterType[]).map((f) => (
+          {(["pending_approval", "pending_rejected", "accepted", "rejected"] as FilterType[]).map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
+
               className={`inline-flex items-center gap-2 rounded-md border-2 px-4 py-2 font-mono text-sm uppercase transition-all duration-200 ${
                 filter === f
                   ? "border-red-600 bg-red-600 text-white"
@@ -121,14 +179,25 @@ export default function ReviewHistoryPage() {
               }`}
             >
               <Filter className="h-4 w-4" />
-              {f.charAt(0).toUpperCase() + f.slice(1)}
+              {pretty(f)}
             </button>
           ))}
-        </div>
+        </div> 
 
         {/* Review list */}
         <div className="grid grid-cols-1 gap-6 pb-20">
-          {filtered.map((r) => (
+          {loading && (
+            <div className="flex items-center gap-2 text-gray-400">
+              <Clock className="h-4 w-4 animate-spin" />
+              <span className="font-mono text-sm uppercase">Loading…</span>
+            </div>
+          )}
+
+          {!loading && error && (
+            <p className="my-4 text-sm text-red-400">{error}</p>
+          )}
+
+          {!loading && !error && filtered.map((r) => (
             <div
               key={r.id}
               className="flex items-center justify-between rounded-xl border-2 border-red-900/50 bg-zinc-950 p-4 hover:border-red-600 transition-all"
@@ -143,18 +212,20 @@ export default function ReviewHistoryPage() {
                   <div className="text-lg font-black">{r.title}</div>
                   <div className="text-sm text-gray-400">{r.manufacturer}</div>
                   <div className="text-xs text-gray-500">
-                    Reviewed {r.dateReviewed}
+                    Reviewed {r.created_at ? new Date(r.created_at).toLocaleString() : "—"}
                   </div>
                 </div>
               </div>
+
+              {/* Green for accepted/pending_approval, Red for rejected/pending_rejected */}
               <div
-                className={`inline-flex items-center gap-2 rounded-md px-3 py-1 font-mono text-sm ${
-                  r.status === "accepted"
-                    ? "bg-green-600/20 text-green-400 border border-green-700"
-                    : "bg-red-600/20 text-red-400 border border-red-700"
+                className={`inline-flex items-center gap-2 rounded-md px-3 py-1 font-mono text-sm border ${
+                  r.status === "accepted" || r.status === "pending_approval"
+                    ? "bg-green-600/20 text-green-400 border-green-700"
+                    : "bg-red-600/20 text-red-400 border-red-700"
                 }`}
               >
-                {r.status === "accepted" ? (
+                {r.status === "accepted" || r.status === "pending_approval" ? (
                   <CheckCircle2 className="h-4 w-4" />
                 ) : (
                   <XCircle className="h-4 w-4" />
