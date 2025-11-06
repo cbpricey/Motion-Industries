@@ -7,15 +7,18 @@
     "build": "next build --turbopack",
     "start": "next start",
     "lint": "eslint",
-    "seed:admin": "node scripts/seed-admin.mjs"
+    "seed:admin": "node scripts/seed-admin.mjs",
+    "update:role": "node scripts/update-user-role.mjs"
   },
   "dependencies": {
     "@elastic/elasticsearch": "^8.19.1",
+    "bcryptjs": "^3.0.2",
     "lucide-react": "^0.544.0",
     "next": "^15.5.3",
     "next-auth": "^4.24.13",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "zod": "^4.1.12"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
