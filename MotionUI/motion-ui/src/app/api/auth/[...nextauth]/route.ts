@@ -19,7 +19,17 @@ import bcrypt from "bcryptjs";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/prisma"; // this is the client we created earlier
 
-const elastic = new Client({ node: process.env.ELASTICSEARCH_URL || "http://localhost:9200" });
+const elastic = new Client({
+  node: process.env.ELASTICSEARCH_URL || "http://localhost:9200",
+  auth: process.env.ELASTICSEARCH_API_KEY
+    ? { apiKey: process.env.ELASTICSEARCH_API_KEY }
+    : process.env.ELASTICSEARCH_USERNAME && process.env.ELASTICSEARCH_PASSWORD
+    ? {
+        username: process.env.ELASTICSEARCH_USERNAME,
+        password: process.env.ELASTICSEARCH_PASSWORD,
+      }
+    : undefined,
+});
 
 interface UserDoc {
   email: string;

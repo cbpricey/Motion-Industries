@@ -4,7 +4,17 @@ import { Client } from "@elastic/elasticsearch";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 
-const elastic = new Client({ node: process.env.ELASTICSEARCH_URL || "http://localhost:9200" });
+const elastic = new Client({
+  node: process.env.ELASTICSEARCH_URL || "http://localhost:9200",
+  auth: process.env.ELASTICSEARCH_API_KEY
+    ? { apiKey: process.env.ELASTICSEARCH_API_KEY }
+    : process.env.ELASTICSEARCH_USERNAME && process.env.ELASTICSEARCH_PASSWORD
+    ? {
+        username: process.env.ELASTICSEARCH_USERNAME,
+        password: process.env.ELASTICSEARCH_PASSWORD,
+      }
+    : undefined,
+});
 const USERS_INDEX = "users";
 
 // Basic validation (tweak as needed)

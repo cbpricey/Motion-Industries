@@ -259,7 +259,7 @@ async function confirmReject() {
             )}
             {typeof display.confidence_score !== "undefined" && (
               <span className="rounded border border-red-900/40 bg-zinc-900 px-2 py-1 font-mono uppercase tracking-wider text-gray-300">
-                Confidence: {display.confidence_score}
+                {`Confidence: ${display.confidence_score.toFixed(2)}%`}
               </span>
             )}
             {display.status && (

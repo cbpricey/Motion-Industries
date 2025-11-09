@@ -27,7 +27,11 @@ export async function GET(
       return NextResponse.json({ error: "Not found" }, { status: 404 });
 
     const src = result._source as any;
-    return NextResponse.json({
+
+    const confidence = src.confidence ?? 0
+    const confidence_score = confidence * 100
+
+    const product = {
       id: result._id,
       manufacturer: src.manufacturer ?? "Unknown",
       sku_number:
@@ -37,9 +41,9 @@ export async function GET(
         `${src.manufacturer ?? ""} ${src.sku_number ?? ""}`.trim(),
       description: src.description ?? "",
       image_url: src.image_url ?? "",
-      confidence_score: src.confidence ?? 0,
+      confidence_score: confidence_score,
       status: src.status ?? "pending",
-    });
+    };
   } catch (err) {
     console.error("Error fetching product:", err);
     return NextResponse.json(
