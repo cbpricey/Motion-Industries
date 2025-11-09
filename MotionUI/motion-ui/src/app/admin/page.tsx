@@ -1,10 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSession } from "next-auth/react";
 
 export default function AdminPage() {
-  const { data: session, status } = useSession();
   const [users, setUsers] = useState<any[]>([]);
 
   useEffect(() => {
@@ -15,17 +13,8 @@ export default function AdminPage() {
         setUsers(data);
       }
     }
-
-    if (session?.user?.role === "admin") {
-      fetchUsers();
-    }
-  }, [session]);
-
-  if (status === "loading") return <p>Loading session...</p>;
-
-  if (session?.user?.role !== "admin") {
-    return <p>Access denied. Admins only.</p>;
-  }
+    fetchUsers();
+  }, []);
 
   return (
     <div style={{ padding: "2rem" }}>
@@ -46,7 +35,7 @@ export default function AdminPage() {
               <td>{u.email}</td>
               <td>{u.name}</td>
               <td>{u.role}</td>
-              <td>{new Date(u.created_at).toLocaleString()}</td>
+              <td>{new Date(u.createdAt).toLocaleString()}</td>
             </tr>
           ))}
         </tbody>

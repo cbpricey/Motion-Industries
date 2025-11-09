@@ -16,6 +16,8 @@ import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { Client } from "@elastic/elasticsearch";
 import bcrypt from "bcryptjs";
+import { PrismaAdapter } from "@auth/prisma-adapter";
+import { prisma } from "@/lib/prisma"; // this is the client we created earlier
 
 const elastic = new Client({ node: process.env.ELASTICSEARCH_URL || "http://localhost:9200" });
 
@@ -27,6 +29,8 @@ interface UserDoc {
 }
 
 export const authOptions: NextAuthOptions = {
+  adapter: PrismaAdapter(prisma),
+  session: { strategy: "database" },
   secret: process.env.NEXTAUTH_SECRET,
   providers: [
     GithubProvider({
@@ -104,30 +108,34 @@ export const authOptions: NextAuthOptions = {
     })
   ],
   callbacks: {
-    async session({ session, token }) {
-      if (session.user) {
-        session.user.role = token.role as string;
-        session.user.id = token.id as string;
-      }
-      return session;
-    },
-    async jwt({ token, user }) {
-      // Run upon sign in
-      if (user?.email) {
-        const result = await elastic.search({
-          index: "users",
-          query: { term: { "email.keyword": user.email } },
-        });
+  async session({ session, user, token }) {
+    // When using the Prisma adapter with database sessions, `user` will be defined
+    if (user) {
+      session.user = {
+        ...session.user,
+        id: user.id,
+        role: user.role,
+      };
+    }
 
-        const userDoc = result.hits.hits[0]?._source as { role?: string };
+    // When using JWT sessions (token-based), fall back to token.role
+    if (token && token.role) {
+      session.user = {
+        ...session.user,
+        role: token.role,
+      };
+    }
 
-        const DEFAULT_ROLE = "reviewer";
-        token.role = userDoc?.role || DEFAULT_ROLE;
-        token.id = result.hits.hits[0]?._id as string; // Type assertion
-      }
-      return token;
-    },
+    return session;
   },
+
+  async jwt({ token, user }) {
+    // Still support the JWT path if you switch back later
+    if (user) token.role = user.role || "reviewer";
+    return token;
+  },
+},
+
   events: {
     async signIn({ user, account }) {
       // Only create user if they signed in with OAuth (not credentials)

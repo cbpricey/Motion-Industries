@@ -213,59 +213,30 @@ export default function SkuWorkbench() {
       isAdmin,
     });
 
-    // If admin, approve immediately
-    if (isAdmin) {
-      try {
-        const res = await fetch(`/api/products/${item.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            status: "approved",
-          }),
-        });
+    try {
+      const res = await fetch(`/api/products/${item.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "approved" }),
+      });
 
-        if (!res.ok) {
-          const errorText = await res.text();
-          if (res.status === 403) {
-            alert("Access denied: Admin privileges required");
-          } else {
-            console.error("Failed to update status:", errorText);
-          }
-          return;
-        }
+      if (!res.ok) {
+        console.error("Failed to update status:", await res.text());
+        return;
+      }
 
-        // Move directly to approved
+      const { status: newStatus } = await res.json();
+
+      // update local state visually
+      if (newStatus === "pending-approve") {
+        setPendingApproved((prev) => [...prev, item]);
+      } else if (newStatus === "approved") {
         setApproved((prev) => [...prev, item]);
-        setPending((prev) => prev.filter((r) => r !== item));
-      } catch (e) {
-        console.error("Error updating product status:", e);
-        alert("An error occurred while approving the item");
       }
-    } else {
-      // Non-admin: Set status to pending_accept
-      try {
-        const res = await fetch(`/api/products/${item.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            status: "pending_accept",
-          }),
-        });
 
-        if (!res.ok) {
-          const errorText = await res.text();
-          console.error("Failed to update status:", errorText);
-          alert("Failed to submit for approval");
-          return;
-        }
-
-        // Move to pending accept list and refresh
-        setPendingAccept((prev) => [...prev, item]);
-        setPending((prev) => prev.filter((r) => r !== item));
-      } catch (e) {
-        console.error("Error updating product status:", e);
-        alert("An error occurred while submitting for approval");
-      }
+      setPending((prev) => prev.filter((r) => r !== item));
+    } catch (e) {
+      console.error("Error updating product status:", e);
     }
   }
 
@@ -311,38 +282,31 @@ export default function SkuWorkbench() {
     console.log("[SKU Workbench] handleReject", {
       sku: (item as any).sku_number ?? (item as any).sku,
       img: (item as any).image_url,
-      isAdmin,
     });
 
-    // If admin, show modal for confirmation then reject immediately
-    if (isAdmin) {
-      setItemToReject(item);
-      setIsRejectModalOpen(true);
-    } else {
-      // Non-admin: Set status to pending_rejected
-      try {
-        const res = await fetch(`/api/products/${item.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            status: "pending_rejected",
-          }),
-        });
+    try {
+      const res = await fetch(`/api/products/${item.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "rejected" }),
+      });
 
-        if (!res.ok) {
-          const errorText = await res.text();
-          console.error("Failed to update status:", errorText);
-          alert("Failed to submit for rejection");
-          return;
-        }
-
-        // Move to pending rejected list and refresh
-        setPendingRejectedDB((prev) => [...prev, item]);
-        setPending((prev) => prev.filter((r) => r !== item));
-      } catch (e) {
-        console.error("Error updating product status:", e);
-        alert("An error occurred while submitting for rejection");
+      if (!res.ok) {
+        console.error("Failed to update status:", await res.text());
+        return;
       }
+
+      const { status: newStatus } = await res.json();
+
+      if (newStatus === "pending-reject") {
+        setPendingRejected((prev) => [...prev, item]);
+      } else if (newStatus === "rejected") {
+        setRejected((prev) => [...prev, item]);
+      }
+
+      setPending((prev) => prev.filter((r) => r !== item));
+    } catch (e) {
+      console.error("Error updating product status:", e);
     }
   }
 

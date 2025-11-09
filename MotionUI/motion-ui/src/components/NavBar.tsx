@@ -7,6 +7,8 @@ import styles from "./NavBar.module.css";
 export default function NavBar() {
   const { data: session, status } = useSession();
 
+  console.log(session);
+
   return (
     <div className={styles.container}>
       <nav className={styles.navbar}>
@@ -22,7 +24,7 @@ export default function NavBar() {
               <Link href="/catalog-navigator">Catalog Navigator</Link>
             </li>
             <li className={styles.item}>
-              <Link href="/review_history">Review History</Link>
+              <Link href="/review-history">Review History</Link>
             </li>
             <li className={styles.item}>
               <Link href="/admin-crud">User Index</Link>
