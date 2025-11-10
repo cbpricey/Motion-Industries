@@ -106,7 +106,7 @@ async function approve() {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        status: "pending_approval",
+        status: "approved",
       }),
     });
 
@@ -138,7 +138,7 @@ async function confirmReject() {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        status: "pending_rejected",
+        status: "rejected",
       }),
     });
 

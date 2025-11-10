@@ -44,6 +44,8 @@ export async function GET(
       confidence_score: confidence_score,
       status: src.status ?? "pending",
     };
+
+    return NextResponse.json(product);
   } catch (err) {
     console.error("Error fetching product:", err);
     return NextResponse.json(
@@ -105,6 +107,55 @@ export async function PATCH(
       },
       doc_as_upsert: false,
     });
+
+    try {
+      const userIndex = session.user.id!; // Prisma user.id from session
+      interface ReviewLog {
+        review_id: string;
+        product_id: string;
+        action: string;
+        final_status: string;
+        reviewer_id: string;
+        reviewer_email: string;
+        reviewer_role?: string;
+        timestamp: string;
+        manufacturer?: string;
+        image_url?: string;
+        confidence?: number | null;
+      }
+      const logEntry : ReviewLog = {
+        review_id: crypto.randomUUID(),
+        product_id: id,
+        action: status.toUpperCase(),     // requested action
+        final_status: finalStatus,        // actual stored status
+        reviewer_id: userIndex,
+        reviewer_email: email,
+        reviewer_role: role,
+        timestamp: new Date().toISOString(),
+      };
+
+      
+      try {
+        const existing = await client.get({ index: INDEX, id });
+        if (existing.found) {
+          const src = existing._source as any;
+          logEntry.manufacturer = src.manufacturer ?? "";
+          logEntry.image_url = src.image_url ?? "";
+          logEntry.confidence = src.confidence ?? null;
+        }
+      } catch (e) {
+        console.warn(`[Review Log] Could not fetch existing doc for ${id}:`, e);
+      }
+
+      await client.index({
+        index: userIndex, // user index
+        document: logEntry,
+      });
+
+      console.log(`[Review Log] Logged review for ${email} in index ${userIndex}`);
+    } catch (logErr) {
+      console.error("[Review Log] Failed to log review:", logErr);
+    }
 
     return NextResponse.json({ success: true, status: finalStatus, result });
   } catch (err) {

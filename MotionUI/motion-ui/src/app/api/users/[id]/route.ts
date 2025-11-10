@@ -1,91 +1,94 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "../../auth/[...nextauth]/route";
-import { Client } from "@elastic/elasticsearch";
+import { prisma } from "@/lib/prisma";
+import bcrypt from "bcryptjs";
 
-const elastic = new Client({
-  node: process.env.ELASTICSEARCH_URL || "http://localhost:9200",
-  auth: process.env.ELASTICSEARCH_API_KEY
-    ? { apiKey: process.env.ELASTICSEARCH_API_KEY }
-    : process.env.ELASTICSEARCH_USERNAME && process.env.ELASTICSEARCH_PASSWORD
-    ? {
-        username: process.env.ELASTICSEARCH_USERNAME,
-        password: process.env.ELASTICSEARCH_PASSWORD,
-      }
-    : undefined,
-});
-
-// PATCH update user
+// PATCH — Update user (Admin only)
 export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (session.user?.role !== "admin") {
+    if (session.user?.role?.toUpperCase() !== "ADMIN") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    const { id } = params;
     const body = await req.json();
-    const { role, name, email } = body;
+    const { role, name, email, password } = body;
 
-    const updateDoc: any = {};
-    if (role) updateDoc.role = role;
-    if (name) updateDoc.name = name;
-    if (email) updateDoc.email = email;
+    const data: any = {};
+    if (role) data.role = role.toUpperCase();
+    if (name) data.name = name;
+    if (email) data.email = email;
+    if (password) data.password = await bcrypt.hash(password, 10);
 
-    await elastic.update({
-      index: "users",
-      id: params.id,
-      body: {
-        doc: updateDoc
-      }
+    const updatedUser = await prisma.user.update({
+      where: { id },
+      data,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        createdAt: true,
+      },
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({
+      ...updatedUser,
+      created_at: updatedUser.createdAt.toISOString(),
+    });
   } catch (error) {
     console.error("Error updating user:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
 
-// DELETE user
+// DELETE — Delete user (Admin only, cannot delete self)
 export async function DELETE(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (session.user?.role !== "admin") {
+    if (session.user?.role?.toUpperCase() !== "ADMIN") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Prevent deleting yourself
-    const user = await elastic.get({
-      index: "users",
-      id: params.id
+    const { id } = params;
+
+    // Find target user
+    const targetUser = await prisma.user.findUnique({
+      where: { id },
+      select: { email: true },
     });
 
-    const userData = user._source as any;
-    if (userData.email === session.user.email) {
-      return NextResponse.json({ error: "Cannot delete your own account" }, { status: 400 });
+    if (!targetUser) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    await elastic.delete({
-      index: "users",
-      id: params.id
-    });
+    // Prevent deleting yourself
+    if (targetUser.email === session.user?.email) {
+      return NextResponse.json(
+        { error: "Cannot delete your own account" },
+        { status: 400 }
+      );
+    }
 
+    await prisma.user.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error deleting user:", error);

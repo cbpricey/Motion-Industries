@@ -26,7 +26,7 @@ export default function AdminCRUD() {
   const [scrollY, setScrollY] = useState(0);
 
   const userRole = session?.user?.role;
-  const isAdmin = userRole === "admin";
+  const isAdmin = userRole === "ADMIN";
 
   useEffect(() => {
     const onScroll = () => setScrollY(window.scrollY);

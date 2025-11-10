@@ -26,9 +26,12 @@ export default function NavBar() {
             <li className={styles.item}>
               <Link href="/review-history">Review History</Link>
             </li>
-            <li className={styles.item}>
-              <Link href="/admin-crud">User Index</Link>
-            </li>
+            {session?.user?.role?.toUpperCase() === "ADMIN" && (
+              <li className={styles.item}>
+                <Link href="/admin-crud">User Index</Link>
+              </li>
+            )}
+            
           </ul>
 
           {/* --- Authentication Controls --- */}

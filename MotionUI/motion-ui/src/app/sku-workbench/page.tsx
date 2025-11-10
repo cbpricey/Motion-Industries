@@ -56,6 +56,7 @@ export default function SkuWorkbench() {
   // ALL HOOKS MUST BE AT THE TOP - BEFORE ANY CONDITIONAL RETURNS
   const { data: session, status: authStatus } = useSession();
   const searchParams = useSearchParams();
+  const router = useRouter();
 
   // Read ALL possible filters from URL
   const mode = searchParams.get("mode") ?? undefined;
@@ -72,10 +73,8 @@ export default function SkuWorkbench() {
   const [pending, setPending] = useState<Item[]>([]);
   const [approved, setApproved] = useState<Item[]>([]);
   const [rejected, setRejected] = useState<Item[]>([]);
-  const [pendingApproved, setPendingApproved] = useState<Item[]>([]);
-  const [pendingRejected, setPendingRejected] = useState<Item[]>([]);
-  const [pendingAccept, setPendingAccept] = useState<Item[]>([]);
-  const [pendingRejectedDB, setPendingRejectedDB] = useState<Item[]>([]);
+  const [pendingApproval, setPendingApproval] = useState<Item[]>([]);
+  const [pendingRejection, setPendingRejection] = useState<Item[]>([]);
   const [scrollY, setScrollY] = useState(0);
 
   // Modal state
@@ -83,7 +82,7 @@ export default function SkuWorkbench() {
   const [itemToReject, setItemToReject] = useState<Item | null>(null);
 
   const userRole = session?.user?.role;
-  const isAdmin = userRole === "admin";
+  const isAdmin = userRole === "ADMIN";
 
   // Debug: Log user role on mount and when session changes
   useEffect(() => {
@@ -142,52 +141,52 @@ export default function SkuWorkbench() {
     fetchProducts();
   }, [authStatus, manufacturer, selectedSku, skuPrefix, minConfidence, statusFilter, sort, from, to]);
 
-  // Fetch pending_accept items
+  // Fetch pending-approve items
   useEffect(() => {
     if (authStatus !== "authenticated") return;
 
-    async function fetchPendingAccept() {
+    async function fetchPendingApproval() {
       try {
         const qp = new URLSearchParams();
-        qp.set("status", "pending_accept");
+        qp.set("status", "pending-approve");
 
         const url = `/api/products?${qp.toString()}`;
-        console.log("[SKU Workbench] fetch pending_accept:", url);
+        console.log("[SKU Workbench] fetch pending-approve:", url);
         const res = await fetch(url, { cache: "no-store" });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = (await res.json()) as Item[];
-        console.log("[SKU Workbench] pending_accept results:", data.length);
-        setPendingAccept(data);
+        console.log("[SKU Workbench] pending-approve results:", data.length);
+        setPendingApproval(data);
       } catch (e) {
-        console.error("[SKU Workbench] Failed to fetch pending_accept:", e);
-        setPendingAccept([]);
+        console.error("[SKU Workbench] Failed to fetch pending-approve:", e);
+        setPendingApproval([]);
       }
     }
-    fetchPendingAccept();
+    fetchPendingApproval();
   }, [authStatus]);
 
-  // Fetch pending_rejected items
+  // Fetch pending-reject items
   useEffect(() => {
     if (authStatus !== "authenticated") return;
 
-    async function fetchPendingRejected() {
+    async function fetchPendingRejection() {
       try {
         const qp = new URLSearchParams();
-        qp.set("status", "pending_rejected");
+        qp.set("status", "pending-reject");
 
         const url = `/api/products?${qp.toString()}`;
-        console.log("[SKU Workbench] fetch pending_rejected:", url);
+        console.log("[SKU Workbench] fetch pending-reject:", url);
         const res = await fetch(url, { cache: "no-store" });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = (await res.json()) as Item[];
-        console.log("[SKU Workbench] pending_rejected results:", data.length);
-        setPendingRejectedDB(data);
+        console.log("[SKU Workbench] pending-reject results:", data.length);
+        setPendingRejection(data);
       } catch (e) {
-        console.error("[SKU Workbench] Failed to fetch pending_rejected:", e);
-        setPendingRejectedDB([]);
+        console.error("[SKU Workbench] Failed to fetch pending-reject:", e);
+        setPendingRejection([]);
       }
     }
-    fetchPendingRejected();
+    fetchPendingRejection();
   }, [authStatus]);
 
   useEffect(() => {
@@ -219,6 +218,7 @@ export default function SkuWorkbench() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "approved" }),
       });
+      router.refresh();
 
       if (!res.ok) {
         console.error("Failed to update status:", await res.text());
@@ -229,7 +229,7 @@ export default function SkuWorkbench() {
 
       // update local state visually
       if (newStatus === "pending-approve") {
-        setPendingApproved((prev) => [...prev, item]);
+        setPendingApproval((prev) => [...prev, item]);
       } else if (newStatus === "approved") {
         setApproved((prev) => [...prev, item]);
       }
@@ -271,7 +271,7 @@ export default function SkuWorkbench() {
       }
 
       setApproved((prev) => [...prev, item]);
-      setPendingAccept((prev) => prev.filter((r) => r !== item));
+      setPendingApproval((prev) => prev.filter((r) => r !== item));
     } catch (e) {
       console.error("Error updating product status:", e);
       alert("An error occurred while approving the item");
@@ -290,6 +290,7 @@ export default function SkuWorkbench() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "rejected" }),
       });
+      router.refresh();
 
       if (!res.ok) {
         console.error("Failed to update status:", await res.text());
@@ -299,7 +300,7 @@ export default function SkuWorkbench() {
       const { status: newStatus } = await res.json();
 
       if (newStatus === "pending-reject") {
-        setPendingRejected((prev) => [...prev, item]);
+        setPendingRejection((prev) => [...prev, item]);
       } else if (newStatus === "rejected") {
         setRejected((prev) => [...prev, item]);
       }
@@ -319,7 +320,7 @@ export default function SkuWorkbench() {
     if (!itemToReject) return;
 
     // Check if this is from pending list or direct admin action
-    const isFromPending = pendingRejectedDB.includes(itemToReject);
+    const isFromPending = pendingRejection.includes(itemToReject);
     
     // If from pending, check admin privilege
     if (isFromPending && userRole !== "admin") {
@@ -355,11 +356,11 @@ export default function SkuWorkbench() {
         return;
       }
 
-      // Move to rejected from either pending or pendingRejectedDB
+      // Move to rejected from either pending or pendingRejection
       setRejected((prev) => [...prev, itemToReject]);
 
       if (isFromPending) {
-        setPendingRejectedDB((prev) => prev.filter((r) => r !== itemToReject));
+        setPendingRejection((prev) => prev.filter((r) => r !== itemToReject));
       } else {
         setPending((prev) => prev.filter((r) => r !== itemToReject));
       }
@@ -532,12 +533,12 @@ export default function SkuWorkbench() {
               <div className="text-xs font-bold uppercase tracking-wide text-gray-400">Pending Review</div>
             </div>
             <div className="rounded-lg border-2 border-blue-900/30 bg-zinc-900/50 p-4">
-              <div className="text-2xl font-black text-blue-400">{pendingAccept.length}</div>
-              <div className="text-xs font-bold uppercase tracking-wide text-gray-400">Pending Accept</div>
+              <div className="text-2xl font-black text-blue-400">{pendingApproval.length}</div>
+              <div className="text-xs font-bold uppercase tracking-wide text-gray-400">Pending Approval</div>
             </div>
             <div className="rounded-lg border-2 border-orange-900/30 bg-zinc-900/50 p-4">
-              <div className="text-2xl font-black text-orange-500">{pendingRejectedDB.length}</div>
-              <div className="text-xs font-bold uppercase tracking-wide text-gray-400">Pending Rejected</div>
+              <div className="text-2xl font-black text-orange-500">{pendingRejection.length}</div>
+              <div className="text-xs font-bold uppercase tracking-wide text-gray-400">Pending Rejection</div>
             </div>
             <div className="rounded-lg border-2 border-green-900/30 bg-zinc-900/50 p-4">
               <div className="text-2xl font-black text-green-500">{approved.length}</div>
@@ -558,17 +559,17 @@ export default function SkuWorkbench() {
         </div>
 
         {/* Pending Accept Section - Only show if there are items */}
-        {pendingAccept.length > 0 && (
+        {pendingApproval.length > 0 && (
           <div className="mx-auto w-full max-w-6xl">
             <section className="w-full">
               <div className="mb-6 flex items-center gap-4">
                 <div className="h-4 w-4 rotate-45 bg-blue-500" />
-                <h2 className="text-2xl font-black uppercase tracking-wider">Pending Accept</h2>
+                <h2 className="text-2xl font-black uppercase tracking-wider">Pending Approval</h2>
                 <div className="h-px flex-1 bg-blue-900" />
                 {isAdmin && <span className="text-xs text-blue-400 font-mono">Admin: Review for final approval</span>}
               </div>
               <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {pendingAccept.map((item) => (
+                {pendingApproval.map((item) => (
                   <ProductTile<Item>
                     key={item.id}
                     item={item}
@@ -582,17 +583,17 @@ export default function SkuWorkbench() {
         )}
 
         {/* Pending Rejected Section - Only show if there are items */}
-        {pendingRejectedDB.length > 0 && (
+        {pendingRejection.length > 0 && (
           <div className="mx-auto w-full max-w-6xl">
             <section className="w-full">
               <div className="mb-6 flex items-center gap-4">
                 <div className="h-4 w-4 rotate-45 bg-orange-500" />
-                <h2 className="text-2xl font-black uppercase tracking-wider">Pending Rejected</h2>
+                <h2 className="text-2xl font-black uppercase tracking-wider">Pending Rejection</h2>
                 <div className="h-px flex-1 bg-orange-900" />
                 {isAdmin && <span className="text-xs text-orange-400 font-mono">Admin: Review for final rejection</span>}
               </div>
               <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {pendingRejectedDB.map((item) => (
+                {pendingRejection.map((item) => (
                   <ProductTile<Item>
                     key={item.id}
                     item={item}
