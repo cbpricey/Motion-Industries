@@ -4,7 +4,17 @@ import type { estypes } from "@elastic/elasticsearch"; // types only; we won't r
 
 export const runtime = "nodejs";
 
-const client = new Client({ node: process.env.ELASTICSEARCH_URL || "http://localhost:9200" });
+const client = new Client({
+  node: process.env.ELASTICSEARCH_URL || "http://localhost:9200",
+  auth: process.env.ELASTICSEARCH_API_KEY
+    ? { apiKey: process.env.ELASTICSEARCH_API_KEY }
+    : process.env.ELASTICSEARCH_USERNAME && process.env.ELASTICSEARCH_PASSWORD
+    ? {
+        username: process.env.ELASTICSEARCH_USERNAME,
+        password: process.env.ELASTICSEARCH_PASSWORD,
+      }
+    : undefined,
+});
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -96,7 +106,7 @@ export async function GET(req: NextRequest) {
 
     // Version-agnostic, runtime-safe extraction of terms buckets
     type Bucket = { key: string | number; doc_count?: number } & Record<string, unknown>;
-    const aggs = (raw as any)?.aggregations;
+    const aggs = (raw as unknown as { aggregations?: { facet?: { buckets?: Bucket[] } } })?.aggregations;
     const buckets: Bucket[] = Array.isArray(aggs?.facet?.buckets) ? aggs.facet.buckets : [];
 
     return NextResponse.json({

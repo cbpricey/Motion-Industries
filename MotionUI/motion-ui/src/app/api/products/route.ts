@@ -19,6 +19,8 @@ const client = new Client({
   node: "http://localhost:9200",
 });
 
+type ESQuery = Record<string, unknown>;
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
 
@@ -33,8 +35,8 @@ export async function GET(req: NextRequest) {
   const sort = searchParams.get("sort");     // relevance|confidence_desc|newest|oldest
 
   try {
-    const must: any[] = [];
-    const should: any[] = [];
+    const must: ESQuery[] = [];
+    const should: ESQuery[] = [];
 
     // Manufacturer (analyzed text ok for matching vendor names)
     if (manufacturer && manufacturer !== "All") {
@@ -95,19 +97,19 @@ export async function GET(req: NextRequest) {
         ? { match_all: {} }
         : { bool: { must, ...(should.length ? { should, minimum_should_match: 1 } : {}) } };
 
-    
+
     // ES takes a list of sort parameters, in order of priority
-    let sortClause: any = [];
+    let sortClause;
     // But if we implement multiple parameters, this switch will need to be refactored
     switch (sort) {
       case "confidence_desc":
-        sortClause = [{ confidence: { order: "desc" } }];
+        sortClause = [{ confidence: { order: "desc" as const } }];
         break;
       case "newest":
-        sortClause = [{ timestamp: { order: "desc" } }];
+        sortClause = [{ timestamp: { order: "desc" as const } }];
         break;
       case "oldest":
-        sortClause = [{ timestamp: { order: "asc" } }];
+        sortClause = [{ timestamp: { order: "asc" as const } }];
         break;
       case "relevance":
       default:
@@ -123,25 +125,25 @@ export async function GET(req: NextRequest) {
       sort: sortClause,
     });
 
-    const docs: ProductDoc[] = (result.hits.hits as any[]).map((hit) => {
-      const src = hit._source ?? {};
+    const docs: ProductDoc[] = result.hits.hits.map((hit) => {
+      const src = (hit._source ?? {}) as Record<string, unknown>;
 
       const normalizedSku: string =
-        src.sku_number ?? src.part_number ?? src.sku ?? String(src.id ?? hit._id);
+        (src.sku_number as string) ?? (src.part_number as string) ?? (src.sku as string) ?? String(src.id ?? hit._id);
 
-      const confidence = src.confidence ?? 0
+      const confidence = (src.confidence as number) ?? 0
       const confidence_score = confidence * 100
 
       return {
-        id: src.id ?? hit._id,
-        manufacturer: src.manufacturer ?? "Unknown",
+        id: (src.id ?? hit._id ?? `unknown-${Date.now()}`) as string | number,
+        manufacturer: (src.manufacturer as string) ?? "Unknown",
         sku_number: normalizedSku,
-        title: src.title ?? src.description ?? `${src.manufacturer ?? ""} ${normalizedSku}`.trim(),
-        description: src.description ?? "",
-        image_url: src.image_url ?? "",
-        created_at: src.created_at,
+        title: (src.title as string) ?? (src.description as string) ?? `${(src.manufacturer as string) ?? ""} ${normalizedSku}`.trim(),
+        description: (src.description as string) ?? "",
+        image_url: (src.image_url as string) ?? "",
+        created_at: src.created_at as string | undefined,
         confidence_score: confidence_score,
-        status: src.status ?? "pending",
+        status: (src.status as string) ?? "pending",
       };
     });
 

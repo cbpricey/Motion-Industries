@@ -94,9 +94,9 @@ export default function AdminCRUD() {
       setUsers(users.filter(u => u.id !== userId));
       setIsDeleteModalOpen(false);
       setUserToDelete(null);
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error("Error deleting user:", e);
-      alert(e.message || "Failed to delete user");
+      alert(e instanceof Error ? e.message : "Failed to delete user");
     }
   }
 

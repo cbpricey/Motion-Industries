@@ -69,26 +69,26 @@ export default function ReviewHistoryPage() {
         // Normalize, exclude *plain* pending (unreviewed) from history
         const allowed = ["approved", "rejected", "pending_approval", "pending_rejected"];
         const arr: ReviewHistoryItem[] = rows
-          .filter((d: any) => allowed.includes(d.status))
-          .map((d: any) => ({
-            id: d.id ?? d._id ?? crypto.randomUUID(),
-            title: d.title ?? d.product_title ?? "(Untitled)",
-            manufacturer: d.manufacturer ?? "",
-            image_url: d.image_url ?? d.thumbnail_url ?? "",
+          .filter((d: Record<string, unknown>) => allowed.includes(d.status as string))
+          .map((d: Record<string, unknown>) => ({
+            id: (d.id ?? d._id ?? crypto.randomUUID()) as string,
+            title: (d.title ?? d.product_title ?? "(Untitled)") as string,
+            manufacturer: (d.manufacturer ?? "") as string,
+            image_url: (d.image_url ?? d.thumbnail_url ?? "") as string,
             status:
               d.status === "approved"
                 ? "accepted"
                 : d.status === "rejected"
                 ? "rejected"
-                : d.status, // keeps pending_approval / pending_rejected
-            created_at: d.reviewed_at ?? d.created_at ?? d.updated_at ?? null,
-            confidence_score: d.confidence_score ?? 0,
+                : (d.status as string), // keeps pending_approval / pending_rejected
+            created_at: (d.reviewed_at ?? d.created_at ?? d.updated_at ?? null) as string | null,
+            confidence_score: (d.confidence_score ?? 0) as number,
           }));
 
         setReviewHistory(arr);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("[ReviewHistoryPage] Failed to fetch review history:", err);
-        setError(err.message || "An error occurred");
+        setError(err instanceof Error ? err.message : "An error occurred");
         setReviewHistory([]);
       } finally {
         setLoading(false);

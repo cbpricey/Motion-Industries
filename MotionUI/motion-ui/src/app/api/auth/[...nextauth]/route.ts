@@ -1,4 +1,4 @@
-import NextAuth, { type NextAuthOptions, type Session } from "next-auth";
+import NextAuth, { type NextAuthOptions } from "next-auth";
 
 declare module "next-auth" {
   interface Session {
@@ -17,7 +17,17 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { Client } from "@elastic/elasticsearch";
 import bcrypt from "bcryptjs";
 
-const elastic = new Client({ node: process.env.ELASTICSEARCH_URL || "http://localhost:9200" });
+const elastic = new Client({
+  node: process.env.ELASTICSEARCH_URL || "http://localhost:9200",
+  auth: process.env.ELASTICSEARCH_API_KEY
+    ? { apiKey: process.env.ELASTICSEARCH_API_KEY }
+    : process.env.ELASTICSEARCH_USERNAME && process.env.ELASTICSEARCH_PASSWORD
+    ? {
+        username: process.env.ELASTICSEARCH_USERNAME,
+        password: process.env.ELASTICSEARCH_PASSWORD,
+      }
+    : undefined,
+});
 
 interface UserDoc {
   email: string;
@@ -96,9 +106,9 @@ export const authOptions: NextAuthOptions = {
             name: userDoc.name,
             role: userDoc.role,
           };
-        } catch (error: any) {
+        } catch (error: unknown) {
           console.error("Auth error:", error);
-          throw new Error(error.message || "Authentication failed");
+          throw new Error(error instanceof Error ? error.message : "Authentication failed");
         }
       }
     })
