@@ -48,6 +48,7 @@ export default function ImageProfilePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false); // Modal state
+  const [showCopiedNotification, setShowCopiedNotification] = useState(false); // Copied notification state
 
   useEffect(() => {
     const onScroll = () => setScrollY(window.scrollY);
@@ -97,6 +98,8 @@ export default function ImageProfilePage() {
   function copy(text: string) {
     navigator.clipboard?.writeText(text).then(() => {
       console.log("[ImageProfile] copied:", text);
+      setShowCopiedNotification(true);
+      setTimeout(() => setShowCopiedNotification(false), 2000); // Hide after 2 seconds
     });
   }
 async function approve() {
@@ -167,7 +170,7 @@ async function confirmReject() {
     return Object.entries(display)
       .filter(([k]) => !omit.has(k))
       .map(([k, v]) => ({
-        k: k === "id" ? "ITEM_NO" : k, // Change "id" to "ITEM_NO"
+        k: k === "id" ? "ITEM_ID" : k, // Change "id" to "ITEM_NO"
         v,
       }));
   }, [display]);
@@ -198,6 +201,18 @@ async function confirmReject() {
                 Cancel
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Copied Notification */}
+      {showCopiedNotification && (
+        <div className="fixed left-1/2 top-8 z-50 -translate-x-1/2 transform animate-fade-in">
+          <div className="flex items-center gap-2 rounded-lg border-2 border-green-600 bg-zinc-900 px-6 py-3 shadow-lg">
+            <CheckCircle2 className="h-5 w-5 text-green-500" />
+            <span className="font-mono text-sm font-bold uppercase tracking-wider text-white">
+              URL Copied to Clipboard!
+            </span>
           </div>
         </div>
       )}
@@ -337,7 +352,11 @@ async function confirmReject() {
                 {metaPairs.map(({ k, v }) => (
                   <div key={k} className="border-t border-zinc-800 pt-3">
                     <div className="text-[11px] uppercase tracking-wider text-gray-500">{k}</div>
-                    <div className="break-words text-sm text-gray-200">{String(v)}</div>
+                    <div className="break-words text-sm text-gray-200">
+                      {k === "confidence_score" && typeof v === "number"
+                        ? `${v.toFixed(2)}%`
+                        : String(v)}
+                    </div>
                   </div>
                 ))}
               </dl>
