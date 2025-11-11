@@ -74,8 +74,8 @@ export default function About() {
                 environments. No prototypes. No theory. Just battle-hardened code that ships.
               </p>
               <p>
-                MISSION PARAMETERS // We engineer motion systems that don't break under pressure. 
-                Every animation optimized. Every transition calculated. Every interaction weaponized 
+                MISSION PARAMETERS // We engineer motion systems that don&apos;t break under pressure.
+                Every animation optimized. Every transition calculated. Every interaction weaponized
                 for maximum user engagement.
               </p>
               <p>

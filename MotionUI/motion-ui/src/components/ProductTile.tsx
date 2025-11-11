@@ -11,8 +11,8 @@ export interface BaseItem {
   sku_number?: string;
   sku?: string;
   id?: string | number;
-  [key: string]: any; // allow extra fields like description, confidence_score, status, etc.
-  
+  [key: string]: unknown; // allow extra fields like description, confidence_score, status, etc.
+
 }
 
 type ProductTileProps<T extends BaseItem> = {

@@ -18,8 +18,9 @@ const elastic = new Client({
 // PATCH update user
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     const session = await getServerSession(authOptions);
     
@@ -34,14 +35,14 @@ export async function PATCH(
     const body = await req.json();
     const { role, name, email } = body;
 
-    const updateDoc: any = {};
+    const updateDoc: Record<string, string> = {};
     if (role) updateDoc.role = role;
     if (name) updateDoc.name = name;
     if (email) updateDoc.email = email;
 
     await elastic.update({
       index: "users",
-      id: params.id,
+      id,
       body: {
         doc: updateDoc
       }
@@ -57,8 +58,9 @@ export async function PATCH(
 // DELETE user
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     const session = await getServerSession(authOptions);
     
@@ -73,17 +75,17 @@ export async function DELETE(
     // Prevent deleting yourself
     const user = await elastic.get({
       index: "users",
-      id: params.id
+      id
     });
 
-    const userData = user._source as any;
+    const userData = user._source as { email?: string };
     if (userData.email === session.user.email) {
       return NextResponse.json({ error: "Cannot delete your own account" }, { status: 400 });
     }
 
     await elastic.delete({
       index: "users",
-      id: params.id
+      id
     });
 
     return NextResponse.json({ success: true });

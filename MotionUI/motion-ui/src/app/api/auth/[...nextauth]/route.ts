@@ -1,4 +1,4 @@
-import NextAuth, { type NextAuthOptions, type Session } from "next-auth";
+import NextAuth, { type NextAuthOptions } from "next-auth";
 
 declare module "next-auth" {
   interface Session {
@@ -106,9 +106,9 @@ export const authOptions: NextAuthOptions = {
             name: userDoc.name,
             role: userDoc.role,
           };
-        } catch (error: any) {
+        } catch (error: unknown) {
           console.error("Auth error:", error);
-          throw new Error(error.message || "Authentication failed");
+          throw new Error(error instanceof Error ? error.message : "Authentication failed");
         }
       }
     })

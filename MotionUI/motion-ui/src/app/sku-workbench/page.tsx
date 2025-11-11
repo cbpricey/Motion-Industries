@@ -101,7 +101,7 @@ export default function SkuWorkbench() {
     () =>
       Array.from(
         new Set(
-          pending.map((r) => (r as any).sku_number ?? (r as any).sku).filter(Boolean)
+          pending.map((r) => ('sku_number' in r ? r.sku_number : r.sku)).filter(Boolean)
         )
       ).sort(),
     [pending]
@@ -201,15 +201,15 @@ export default function SkuWorkbench() {
     selectedSku === "All"
       ? pending
       : pending.filter(
-          (r) => (r as any).sku_number === selectedSku || (r as any).sku === selectedSku
+          (r) => ('sku_number' in r && r.sku_number === selectedSku) || ('sku' in r && r.sku === selectedSku)
         );
   const total = bySku.length;
 
   // HANDLER FUNCTIONS
   async function handleApprove(item: Item) {
     console.log("[SKU Workbench] handleApprove", {
-      sku: (item as any).sku_number ?? (item as any).sku,
-      img: (item as any).image_url,
+      sku: 'sku_number' in item ? item.sku_number : item.sku,
+      img: item.image_url,
       isAdmin,
     });
 
@@ -277,8 +277,8 @@ export default function SkuWorkbench() {
     }
 
     console.log("[SKU Workbench] confirmApprove", {
-      sku: (item as any).sku_number ?? (item as any).sku,
-      img: (item as any).image_url,
+      sku: 'sku_number' in item ? item.sku_number : item.sku,
+      img: item.image_url,
     });
     try {
       const res = await fetch(`/api/products/${item.id}`, {
@@ -309,8 +309,8 @@ export default function SkuWorkbench() {
 
   async function handleReject(item: Item) {
     console.log("[SKU Workbench] handleReject", {
-      sku: (item as any).sku_number ?? (item as any).sku,
-      img: (item as any).image_url,
+      sku: 'sku_number' in item ? item.sku_number : item.sku,
+      img: item.image_url,
       isAdmin,
     });
 
@@ -366,8 +366,8 @@ export default function SkuWorkbench() {
     }
 
     console.log("[SKU Workbench] confirmReject", {
-      sku: (itemToReject as any).sku_number ?? (itemToReject as any).sku,
-      img: (itemToReject as any).image_url,
+      sku: 'sku_number' in itemToReject ? itemToReject.sku_number : itemToReject.sku,
+      img: itemToReject.image_url,
       isAdmin,
       isFromPending,
     });

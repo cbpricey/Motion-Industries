@@ -106,7 +106,7 @@ export async function GET(req: NextRequest) {
 
     // Version-agnostic, runtime-safe extraction of terms buckets
     type Bucket = { key: string | number; doc_count?: number } & Record<string, unknown>;
-    const aggs = (raw as any)?.aggregations;
+    const aggs = (raw as unknown as { aggregations?: { facet?: { buckets?: Bucket[] } } })?.aggregations;
     const buckets: Bucket[] = Array.isArray(aggs?.facet?.buckets) ? aggs.facet.buckets : [];
 
     return NextResponse.json({
