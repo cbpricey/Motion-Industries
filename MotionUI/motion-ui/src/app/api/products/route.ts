@@ -99,17 +99,17 @@ export async function GET(req: NextRequest) {
 
 
     // ES takes a list of sort parameters, in order of priority
-    let sortClause: Array<Record<string, unknown> | string> = [];
+    let sortClause;
     // But if we implement multiple parameters, this switch will need to be refactored
     switch (sort) {
       case "confidence_desc":
-        sortClause = [{ confidence: { order: "desc" } }];
+        sortClause = [{ confidence: { order: "desc" as const } }];
         break;
       case "newest":
-        sortClause = [{ timestamp: { order: "desc" } }];
+        sortClause = [{ timestamp: { order: "desc" as const } }];
         break;
       case "oldest":
-        sortClause = [{ timestamp: { order: "asc" } }];
+        sortClause = [{ timestamp: { order: "asc" as const } }];
         break;
       case "relevance":
       default:
@@ -135,7 +135,7 @@ export async function GET(req: NextRequest) {
       const confidence_score = confidence * 100
 
       return {
-        id: src.id ?? hit._id,
+        id: (src.id ?? hit._id ?? `unknown-${Date.now()}`) as string | number,
         manufacturer: (src.manufacturer as string) ?? "Unknown",
         sku_number: normalizedSku,
         title: (src.title as string) ?? (src.description as string) ?? `${(src.manufacturer as string) ?? ""} ${normalizedSku}`.trim(),

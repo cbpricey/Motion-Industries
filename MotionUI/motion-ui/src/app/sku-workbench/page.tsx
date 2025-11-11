@@ -7,9 +7,11 @@ import type { ReviewCardProps } from "../../components/ReviewCard";
 import { Filter, CheckCircle2, XCircle } from "lucide-react";
 import ProductTile from "../../components/ProductTile";
 
-type Item =
-  | (ReviewCardProps & { sku_number?: string; id?: number | string })
-  | (ReviewCardProps & { sku?: string; id?: number | string });
+type Item = ReviewCardProps & {
+  sku_number?: string;
+  sku?: string;
+  id?: number | string
+};
 
 /* ───────────────────────── Grid ───────────────────────── */
 
@@ -101,7 +103,7 @@ export default function SkuWorkbench() {
     () =>
       Array.from(
         new Set(
-          pending.map((r) => ('sku_number' in r ? r.sku_number : r.sku)).filter(Boolean)
+          pending.map((r) => r.sku_number ?? r.sku).filter(Boolean)
         )
       ).sort(),
     [pending]
@@ -201,14 +203,14 @@ export default function SkuWorkbench() {
     selectedSku === "All"
       ? pending
       : pending.filter(
-          (r) => ('sku_number' in r && r.sku_number === selectedSku) || ('sku' in r && r.sku === selectedSku)
+          (r) => r.sku_number === selectedSku || r.sku === selectedSku
         );
   const total = bySku.length;
 
   // HANDLER FUNCTIONS
   async function handleApprove(item: Item) {
     console.log("[SKU Workbench] handleApprove", {
-      sku: 'sku_number' in item ? item.sku_number : item.sku,
+      sku: item.sku_number ?? item.sku,
       img: item.image_url,
       isAdmin,
     });
@@ -277,7 +279,7 @@ export default function SkuWorkbench() {
     }
 
     console.log("[SKU Workbench] confirmApprove", {
-      sku: 'sku_number' in item ? item.sku_number : item.sku,
+      sku: item.sku_number ?? item.sku,
       img: item.image_url,
     });
     try {
@@ -309,7 +311,7 @@ export default function SkuWorkbench() {
 
   async function handleReject(item: Item) {
     console.log("[SKU Workbench] handleReject", {
-      sku: 'sku_number' in item ? item.sku_number : item.sku,
+      sku: item.sku_number ?? item.sku,
       img: item.image_url,
       isAdmin,
     });
@@ -366,7 +368,7 @@ export default function SkuWorkbench() {
     }
 
     console.log("[SKU Workbench] confirmReject", {
-      sku: 'sku_number' in itemToReject ? itemToReject.sku_number : itemToReject.sku,
+      sku: itemToReject.sku_number ?? itemToReject.sku,
       img: itemToReject.image_url,
       isAdmin,
       isFromPending,
