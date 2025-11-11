@@ -5,12 +5,12 @@ import GitHubProvider from "next-auth/providers/github";
 import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
-import { PrismaAdapter } from "@next-auth/prisma-adapter";   // ✅ correct adapter for v4
+import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { prisma } from "@/lib/prisma";
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
-  session: { strategy: "database" },  // ✅ real Prisma Session rows
+  session: { strategy: "database" },
   secret: process.env.NEXTAUTH_SECRET,
   providers: [
     GitHubProvider({
