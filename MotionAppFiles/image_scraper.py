@@ -40,7 +40,7 @@ import joblib
 
 es = Elasticsearch(
     "http://localhost:9200",
-    basic_auth=("elastic", "w8bLFnhadBAWxnsiK9mv"),
+    basic_auth=("elastic", "iVxV4ndUkDRH656PFj1BzHrO"),
     verify_certs=False  # Disable certificate verification for local testing
 )
 
