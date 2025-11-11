@@ -82,6 +82,19 @@ export async function PATCH(
       doc_as_upsert: false, // do not create if it doesn't already exist
     });
 
+    if (status === "approved" || status === "rejected"){
+      const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+      // Not async bc UI shouldn't wait for feedback to be recorded
+      fetch(`${baseUrl}/api/feedback`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id,
+          user_action: status, // "approved" or "rejected"
+        }),
+      }).catch(err => console.error("Feedback recording failed:", err));
+    }
+
     return NextResponse.json({ success: true, result });
   } catch (e: any) {
     console.error("Error updating product:", e);
