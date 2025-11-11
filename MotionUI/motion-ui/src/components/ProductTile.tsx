@@ -6,13 +6,14 @@ import { CheckCircle2, XCircle } from "lucide-react";
 /** Minimal fields the tile actually uses */
 export interface BaseItem {
   image_url: string;
-  // title?: string;
+  title?: string;
   manufacturer?: string;
   sku_number?: string;
   sku?: string;
   id?: string | number;
-  [key: string]: any; // allow extra fields like description, confidence_score, status, etc.
-  
+  confidence_score?: number;
+  [key: string]: unknown; // allow extra fields like description, status, etc.
+
 }
 
 type ProductTileProps<T extends BaseItem> = {

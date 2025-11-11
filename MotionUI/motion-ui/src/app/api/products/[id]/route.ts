@@ -4,7 +4,15 @@ import { Client } from "@elastic/elasticsearch";
 export const runtime = "nodejs"; // ES client needs Node runtime
 
 const client = new Client({
-  node: "http://localhost:9200", // your Docker ES endpoint
+  node: process.env.ELASTICSEARCH_URL || "http://localhost:9200",
+  auth: process.env.ELASTICSEARCH_API_KEY
+    ? { apiKey: process.env.ELASTICSEARCH_API_KEY }
+    : process.env.ELASTICSEARCH_USERNAME && process.env.ELASTICSEARCH_PASSWORD
+    ? {
+        username: process.env.ELASTICSEARCH_USERNAME,
+        password: process.env.ELASTICSEARCH_PASSWORD,
+      }
+    : undefined,
 });
 
 const INDEX = "image_metadata";
@@ -13,7 +21,7 @@ const INDEX = "image_metadata";
 // Fetch a single document by its ES _id
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
 
@@ -27,27 +35,27 @@ export async function GET(
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    const src = result._source as any;
+    const src = (result._source ?? {}) as Record<string, unknown>;
 
-    const confidence = src.confidence ?? 0
+    const confidence = (src.confidence as number) ?? 0
     const confidence_score = confidence * 100
 
     const product = {
       id: result._id,
-      manufacturer: src.manufacturer ?? "Unknown",
+      manufacturer: (src.manufacturer as string) ?? "Unknown",
       sku_number:
-        src.sku_number ?? src.part_number ?? src.sku ?? String(src.id ?? id),
+        (src.sku_number as string) ?? (src.part_number as string) ?? (src.sku as string) ?? String(src.id ?? id),
       title:
-        src.description ??
-        `${src.manufacturer ?? ""} ${src.sku_number ?? ""}`.trim(),
-      description: src.description ?? "",
-      image_url: src.image_url ?? "",
+        (src.description as string) ??
+        `${(src.manufacturer as string) ?? ""} ${(src.sku_number as string) ?? ""}`.trim(),
+      description: (src.description as string) ?? "",
+      image_url: (src.image_url as string) ?? "",
       confidence_score: confidence_score,
-      status: src.status ?? "pending",
+      status: (src.status as string) ?? "pending",
     };
 
     return NextResponse.json(product);
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error("Error fetching product by ID:", e);
     return NextResponse.json(
       { error: "Failed to fetch product" },
@@ -60,7 +68,7 @@ export async function GET(
 // Update the "status" (or any other fields) of a product by _id
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
 
@@ -96,7 +104,7 @@ export async function PATCH(
     }
 
     return NextResponse.json({ success: true, result });
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error("Error updating product:", e);
     return NextResponse.json(
       { error: "Failed to update product" },

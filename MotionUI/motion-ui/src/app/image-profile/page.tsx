@@ -29,7 +29,7 @@ interface ItemRecord {
   height?: number;
   filesize_kb?: number;
   mime_type?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export default function ImageProfilePage() {
@@ -79,9 +79,9 @@ export default function ImageProfilePage() {
             setSiblings(arr.filter((r) => r.image_url !== rec?.image_url));
           }
         }
-      } catch (e: any) {
+      } catch (e: unknown) {
         console.error(e);
-        setError(String(e));
+        setError(e instanceof Error ? e.message : String(e));
       } finally {
         setLoading(false);
       }
@@ -162,7 +162,7 @@ async function confirmReject() {
   }
 
   const metaPairs = useMemo(() => {
-    if (!display) return [] as Array<{ k: string; v: any }>;
+    if (!display) return [] as Array<{ k: string; v: unknown }>;
     const omit = new Set(["image_url", "title"]); // Exclude "title" from metadata
     return Object.entries(display)
       .filter(([k]) => !omit.has(k))
@@ -277,7 +277,7 @@ async function confirmReject() {
             <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950 p-3">
               <img
                 src={display.image_url}
-                alt={(display.title as any) || "Image"}
+                alt={String(display.title ?? "Image")}
                 className="max-h-[70vh] w-full rounded-lg object-contain"
               />
             </div>
@@ -355,15 +355,15 @@ async function confirmReject() {
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
               {siblings.map((s, i) => (
                 <button
-                  key={(s as any).image_url ?? i}
+                  key={s.image_url ?? i}
                   onClick={() => {
-                    router.push(`/image-profile?id=${(s as any).id}&back=${encodeURIComponent(back)}`);
+                    router.push(`/image-profile?id=${s.id}&back=${encodeURIComponent(back)}`);
                   }}
                   className="overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950 p-2 hover:border-red-600"
                 >
                   <img
-                    src={(s as any).image_url}
-                    alt={(s as any).title || "Sibling"}
+                    src={s.image_url}
+                    alt={String(s.title ?? "Sibling")}
                     className="aspect-[4/3] w-full rounded object-cover"
                   />
                 </button>

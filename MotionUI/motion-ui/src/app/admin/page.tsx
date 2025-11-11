@@ -3,9 +3,17 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 
+interface User {
+  id: string;
+  name?: string;
+  email?: string;
+  role?: string;
+  created_at?: string;
+}
+
 export default function AdminPage() {
   const { data: session, status } = useSession();
-  const [users, setUsers] = useState<any[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
 
   useEffect(() => {
     async function fetchUsers() {
@@ -46,7 +54,7 @@ export default function AdminPage() {
               <td>{u.email}</td>
               <td>{u.name}</td>
               <td>{u.role}</td>
-              <td>{new Date(u.created_at).toLocaleString()}</td>
+              <td>{u.created_at ? new Date(u.created_at).toLocaleString() : 'N/A'}</td>
             </tr>
           ))}
         </tbody>

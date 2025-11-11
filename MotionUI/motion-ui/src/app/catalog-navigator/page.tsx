@@ -71,7 +71,7 @@ export default function SelectNavigatorPage() {
         const data: FacetResponse = await res.json();
 
         // Normalize to string[]
-        const dynamic: string[] = Array.isArray((data as any)?.buckets)
+        const dynamic: string[] = Array.isArray((data as { buckets?: FacetBucket[] })?.buckets)
           ? ((data as { buckets: FacetBucket[] }).buckets ?? []).map((b) => String(b.key))
           : Array.isArray(data)
           ? (data as string[]).map((s) => String(s))
@@ -84,9 +84,9 @@ export default function SelectNavigatorPage() {
           setManufacturers(next);
           setManufacturer((prev) => (next.includes(prev) ? prev : "All"));
         }
-      } catch (e: any) {
+      } catch (e: unknown) {
         console.error("[Navigator] manufacturer facets failed:", e);
-        if (!cancelled) setManuError(e?.message ?? "Failed to load manufacturers");
+        if (!cancelled) setManuError(e instanceof Error ? e.message : "Failed to load manufacturers");
       } finally {
         if (!cancelled) setManuLoading(false);
       }
@@ -355,7 +355,7 @@ export default function SelectNavigatorPage() {
                 <Filter className="h-4 w-4 text-red-500" />
                 <select
                   value={status}
-                  onChange={(e) => setStatus(e.target.value as any)}
+                  onChange={(e) => setStatus(e.target.value as "any" | "pending" | "approved" | "rejected")}
                   className="w-full rounded-md border-2 border-red-900/50 bg-black px-3 py-2 text-sm text-white outline-none transition focus:border-red-600"
                 >
                   <option value="any">Any</option>
@@ -372,7 +372,7 @@ export default function SelectNavigatorPage() {
                 <SortAsc className="h-4 w-4 text-red-500" />
                 <select
                   value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as any)}
+                  onChange={(e) => setSortBy(e.target.value as "relevance" | "confidence_desc" | "newest" | "oldest")}
                   className="w-full rounded-md border-2 border-red-900/50 bg-black px-3 py-2 text-sm text-white outline-none transition focus:border-red-600"
                 >
                   <option value="relevance">Relevance</option>
