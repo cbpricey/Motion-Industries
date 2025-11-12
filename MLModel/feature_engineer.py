@@ -8,14 +8,13 @@ from rapidfuzz import fuzz
 from tqdm import tqdm
 
 # === CONFIGURATION ===
-CSV_PATH = "Image_Cross_Reference.csv"          # CSV of image filenames + corresponding manufacturers and item no's
+CSV_PATH = "Output/images_with_features3.csv"          # CSV of image filenames + corresponding manufacturers and item no's
 IMAGE_DIR = "Output/Images"                    # Directory containing image files
 IMAGE_COLUMN = "PRIMARY_IMAGE"                  # Name of column containing image filenames,
-MFR_COLUMN = "MFR_NAME"                         # manufacturer names,
-ITEM_NO_COLUMN = "ITEM_NO"                      # item numbers
+MFR_COLUMN = "MFR_NAME"                         # manufacturer names
 OUTPUT_DIR = "Output"                           # Output CSV and log saved here
 os.makedirs(OUTPUT_DIR, exist_ok=True)          # Create output dir if it doesn't already exist                    
-OUTPUT_CSV_PATH = os.path.join(OUTPUT_DIR, "images_with_features2.csv") # Output CSV file name
+OUTPUT_CSV_PATH = os.path.join(OUTPUT_DIR, "images_with_features_new.csv") # Output CSV file name
 LOG_PATH = os.path.join(OUTPUT_DIR, "exceptions.log") # Any exceptions are logged in this file
 
 # === LOGGING SETUP ===
@@ -33,19 +32,15 @@ WHITE_RGB_MIN = 200   # optional extra guard: each RGB channel fairly high
 ALPHA_VISIBLE_MIN = 250  # for PNGs: treat alpha >= 250 as visible pixel
 BORDER_FRAC = 0.05    # examine a 5% border band for WhiteBorderRatio
 
-
-def compute_filename_features(filename, item_number, manufacturer):
+def compute_filename_features(filename, manufacturer):
     """Compute string similarity features from filename."""
     fname = os.path.splitext(os.path.basename(filename))[0].lower()
-
-    # Binary item number match (does item no. appear as substring in filename or not?)
-    item_match = 1 if str(item_number).lower() in fname else 0
 
     # Fuzzy manufacturer match
     manufacturer_clean = str(manufacturer).replace("(", "").replace(")", "")
     manufacturer_similarity = fuzz.token_set_ratio(manufacturer_clean.lower(), fname)
 
-    return item_match, manufacturer_similarity
+    return manufacturer_similarity
 
 def compute_white_ratio(
     image_bgr: np.ndarray,
@@ -109,13 +104,13 @@ def compute_white_ratio(
 def analyze_image(image_path):
     """Return resolution, entropy, sharpness, brightness, white_ratio, white_border_ratio for one image."""
     if not os.path.exists(image_path):
-        return None, None, None, None
+        return None, None, None, None, None, None
     
     # Only process these file types
     allowed_exts = {".png", ".jpg", ".jpeg", ".webp"}
     ext = os.path.splitext(image_path)[-1].lower()
     if ext not in allowed_exts:
-        return None, None, None, None
+        return None, None, None, None, None, None
 
     try:
         image_bgr = cv2.imread(image_path)
@@ -150,9 +145,11 @@ def analyze_image(image_path):
         except Exception as e:
             logging.error(f"[{image_path}] Brightness calculation failed: {e}")
             brightness = None
-
-        # NEW: white background ratios
-        white_ratio, white_border_ratio = compute_white_ratio(image_bgr)
+        try:
+            white_ratio, white_border_ratio = compute_white_ratio(image_bgr)
+        except Exception as e:
+            logging.error(f"[{image_path}] White ratio and/or border calculation failed: {e}")
+            white_ratio, white_border_ratio = None
 
     except Exception:
         logging.error(f"Error processing {image_path}: {e}")
@@ -164,7 +161,6 @@ def main():
     df = pd.read_csv(CSV_PATH)
 
     # Add empty columns for new metrics
-    df["ItemNoMatch"] = None
     df["MFRSimilarity"] = None
     df["Entropy"] = None
     df["Sharpness"] = None
@@ -177,15 +173,13 @@ def main():
 
     for idx, row in tqdm(df.iterrows(), total=len(df)):
         filename = row[IMAGE_COLUMN]
-        item_no = row[ITEM_NO_COLUMN]
         mfr = row[MFR_COLUMN]
         image_path = os.path.join(IMAGE_DIR, str(filename))
 
-        item_match, mfr_similarity = compute_filename_features(filename, item_no, mfr)
+        mfr_similarity = compute_filename_features(filename, mfr)
         resolution, entropy, sharpness, brightness, white_ratio, white_border_ratio = analyze_image(image_path)
         # print(resolution, entropy, sharpness, brightness)
 
-        df.at[idx, "ItemNoMatch"] = item_match
         df.at[idx, "MFRSimilarity"] = mfr_similarity
         df.at[idx, "Entropy"] = entropy
         df.at[idx, "Sharpness"] = sharpness

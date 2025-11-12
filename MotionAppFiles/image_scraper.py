@@ -303,17 +303,17 @@ def download_images(image_urls, manufacturer, part_number, item_number, output_d
 
             # Compute confidence score using ML Model
             try:
-                resolution, entropy, sharpness, brightness = analyze_image(img_path)
-                item_no_match, manufacturer_similarity = compute_filename_features(img_url, item_number, manufacturer)
+                resolution, entropy, sharpness, brightness, white_ratio, white_border_ratio = analyze_image(img_path)
+                manufacturer_similarity = compute_filename_features(img_url, manufacturer)
 
                 # Skip if metrics missing
-                if None in (resolution, entropy, sharpness, brightness, item_no_match, manufacturer_similarity):
+                if None in (resolution, entropy, sharpness, brightness, white_ratio, white_border_ratio, manufacturer_similarity):
                     log_skip(f"Invalid metrics for {img_path}")
                     continue
 
                 # Prepare feature vector
                 # If resolution feature is added back to model, will need to include it here too
-                X_new = np.array([[item_no_match, manufacturer_similarity, entropy, sharpness, brightness]])
+                X_new = np.array([[manufacturer_similarity, entropy, sharpness, brightness, white_ratio, white_border_ratio]])
 
                 # Predict confidence
                 confidence = float(model.predict_proba(X_new)[0, 1])

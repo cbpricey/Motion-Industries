@@ -5,9 +5,9 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_auc_score, classification_report, confusion_matrix
 
 # Load data
-df = pd.read_csv("Output/images_with_features.csv")
-df = df.tail(568).reset_index(drop=True)
-print(len(df))
+df = pd.read_csv("Output/images_with_features_new.csv")
+# df = df.tail(568).reset_index(drop=True)
+# print(len(df))
 
 # Features and labels
 X = df.drop(columns=["[<ID>]", "ITEM_NO", "ENTERPRISE_NAME", "MFR_NAME", "PRIMARY_IMAGE", "Label", "Resolution"])
