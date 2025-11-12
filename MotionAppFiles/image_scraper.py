@@ -38,10 +38,21 @@ from feature_engineer import analyze_image, compute_filename_features
 import numpy as np
 import joblib
 
+#for local deployment only change the username and password
+# es = Elasticsearch(
+#     "https://testing-a5af5f.es.us-central1.gcp.cloud.es.io/",
+#     basic_auth=("username", "password"),
+#     verify_certs=True  # Disable certificate verification for local testing
+# )
+
+
 es = Elasticsearch(
-    "http://localhost:9200",
-    basic_auth=("elastic", "iVxV4ndUkDRH656PFj1BzHrO"),
-    verify_certs=False  # Disable certificate verification for local testing
+    os.getenv("ELASTICSEARCH_URL"),
+    basic_auth=(
+        os.getenv("ELASTICSEARCH_USERNAME", "elastic"),
+        os.getenv("ELASTICSEARCH_PASSWORD")
+    ),
+    verify_certs=True
 )
 
 MODEL_PATH = "image_classifier_confidence.pkl"
@@ -365,9 +376,20 @@ def index_image_metadata(image_url, manufacturer, part_number, item_number, desc
         "confidence": confidence,
         "timestamp": datetime.now()
     }
+
+    index_name = "image_metadata"  # must be lowercase and no spaces
+
     try:
-        response = es.index(index="image_metadata", document=doc)
-        log_ok(f"Document indexed successfully: {response['_id']}")
+        # Create index if it doesn't exist (safe in Elastic Cloud)
+        if not es.indices.exists(index=index_name):
+            es.indices.create(index=index_name, ignore=400)
+            log_ok(f"Created index: {index_name}")
+
+        response = es.index(index=index_name, document=doc)
+        log_ok(f"Document indexed successfully (ID={response.get('_id')})")
+
+    except ConnectionError as ce:
+        log_err(f"Elasticsearch connection failed: {ce}")
     except Exception as e:
         log_err(f"Elasticsearch indexing failed for {image_url}: {e}")
 
