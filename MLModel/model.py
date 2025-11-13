@@ -39,7 +39,6 @@ print("AUC:", roc_auc_score(y_test, y_pred_proba))
 print(confusion_matrix(y_test, y_pred))
 print(classification_report(y_test, y_pred, target_names=["Rejected", "Approved"]))
 
-# Assuming your model is called `model` and features are in `X`
 importances = model.feature_importances_
 feature_importance_df = pd.DataFrame({
     'Feature': X.columns,
@@ -58,8 +57,8 @@ results = pd.DataFrame({
 # Optionally add row indices or image identifiers if you have them
 # results["Image_ID"] = X_test.index  # or df.loc[X_test.index, "PRIMARY_IMAGE"]
 
-# Sort by confidence if you want to see most/least certain predictions
+# Sort by confidence to see most/least certain predictions
 results_sorted = results.sort_values(by="Confidence (%)", ascending=False)
 
-# Show a few examples
+# Show 10 examples
 print(results_sorted.head(10))

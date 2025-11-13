@@ -1,7 +1,5 @@
 import { NextResponse, NextRequest } from "next/server";
-import fs from "fs";
 import path from "path";
-import { json2csv } from "json-2-csv";
 import { Client } from "@elastic/elasticsearch";
 
 export const runtime = "nodejs"; // ES client needs Node, not Edge
@@ -10,7 +8,7 @@ const client = new Client({
   node: "http://localhost:9200", // your Docker ES endpoint
 });
 const INDEX = "image_metadata";
-const FEEDBACK_CSV_PATH = path.join(process.cwd(), "Output", "feedback.csv");
+const FEEDBACK_INDEX = "feedback"
 
 export async function POST(req: NextRequest) {
     try {
@@ -37,21 +35,18 @@ export async function POST(req: NextRequest) {
         const src = res._source as any;
 
         const label = user_action === "approved" ? 1 : 0;
-        const row = {
+        const feedbackDoc = {
+            "original_id": res._id, // to associate with document in image_metadata
             "[<ID>]": src.sku_number,
             "MFR_NAME": src.manufacturer,
             "PRIMARY_IMAGE": src.image_url,
             "Label": label, // approved / rejected from UI
         };
 
-        const csv = await json2csv([row], {
-            emptyFieldValue: "",
-            keys: Object.keys(row),
-            prependHeader: !fs.existsSync(FEEDBACK_CSV_PATH), // add header only if file doesn't exist
+        await client.index({
+            index: FEEDBACK_INDEX,
+            document: feedbackDoc,
         });
-
-        fs.mkdirSync(path.dirname(FEEDBACK_CSV_PATH), { recursive: true });
-        fs.appendFileSync(FEEDBACK_CSV_PATH, csv + "\n", "utf8");
 
         return NextResponse.json({
             success: true,
