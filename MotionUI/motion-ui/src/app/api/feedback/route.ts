@@ -12,7 +12,7 @@ const FEEDBACK_INDEX = "feedback"
 
 export async function POST(req: NextRequest) {
     try {
-        const { id, user_action } = await req.json();
+        const { id, user_action, rejection_comment } = await req.json();
         if (!id || !user_action) {
             return NextResponse.json(
                 { error: "id and user_action are required" },
@@ -41,6 +41,7 @@ export async function POST(req: NextRequest) {
             "MFR_NAME": src.manufacturer,
             "PRIMARY_IMAGE": src.image_url,
             "Label": label, // approved / rejected from UI
+            "rejection_comment": rejection_comment || "", // Include rejection comment if provided
         };
 
         await client.index({
