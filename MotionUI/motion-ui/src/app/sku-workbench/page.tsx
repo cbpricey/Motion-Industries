@@ -78,10 +78,8 @@ export default function SkuWorkbench() {
   const [pending, setPending] = useState<Item[]>([]);
   const [approved, setApproved] = useState<Item[]>([]);
   const [rejected, setRejected] = useState<Item[]>([]);
-  const [pendingApproved, setPendingApproved] = useState<Item[]>([]);
   const [pendingRejected, setPendingRejected] = useState<Item[]>([]);
   const [pendingAccept, setPendingAccept] = useState<Item[]>([]);
-  const [pendingRejectedDB, setPendingRejectedDB] = useState<Item[]>([]);
   const [scrollY, setScrollY] = useState(0);
 
   // Modal state
@@ -192,10 +190,10 @@ export default function SkuWorkbench() {
         const resJson = await res.json() 
         const data = resJson.results as Item[];
         console.log("[SKU Workbench] pending_rejected results:", data.length);
-        setPendingRejectedDB(data);
+        setPendingRejected(data);
       } catch (e) {
         console.error("[SKU Workbench] Failed to fetch pending_rejected:", e);
-        setPendingRejectedDB([]);
+        setPendingRejected([]);
       }
     }
     fetchPendingRejected();
@@ -254,6 +252,11 @@ export default function SkuWorkbench() {
       }
     } else {
       // Non-admin: Set status to pending_accept
+      // Make sure item isn't already pending_accept
+      if (item.status === 'pending_accept') {
+        alert("Only administrators can finalize approvals.");
+        return;
+      }
       try {
         const res = await fetch(`/api/products/${item.id}`, {
           method: "PATCH",
@@ -339,7 +342,7 @@ export default function SkuWorkbench() {
     if (!itemToReject) return;
 
     // Check if this is from pendingRejectedDB (awaiting admin final rejection)
-    const isFromPendingRejected = pendingRejectedDB.includes(itemToReject);
+    const isFromPendingRejected = pendingRejected.includes(itemToReject);
 
     // If from pendingRejectedDB, check admin privilege
     if (isFromPendingRejected && userRole !== "admin") {
@@ -398,13 +401,13 @@ export default function SkuWorkbench() {
         setRejected((prev) => [...prev, itemToReject]);
 
         if (isFromPendingRejected) {
-          setPendingRejectedDB((prev) => prev.filter((r) => r !== itemToReject));
+          setPendingRejected((prev) => prev.filter((r) => r !== itemToReject));
         } else {
           setPending((prev) => prev.filter((r) => r !== itemToReject));
         }
       } else if (targetStatus === "pending_rejected") {
         // Move to pending rejected list (non-admin action)
-        setPendingRejectedDB((prev) => [...prev, itemToReject]);
+        setPendingRejected((prev) => [...prev, itemToReject]);
         setPending((prev) => prev.filter((r) => r !== itemToReject));
       }
     } catch (err) {
@@ -612,7 +615,7 @@ export default function SkuWorkbench() {
               <div className="text-xs font-bold uppercase tracking-wide text-gray-400">Pending Accept</div>
             </div>
             <div className="rounded-lg border-2 border-orange-900/30 bg-zinc-900/50 p-4">
-              <div className="text-2xl font-black text-orange-500">{pendingRejectedDB.length}</div>
+              <div className="text-2xl font-black text-orange-500">{pendingRejected.length}</div>
               <div className="text-xs font-bold uppercase tracking-wide text-gray-400">Pending Rejected</div>
             </div>
             <div className="rounded-lg border-2 border-green-900/30 bg-zinc-900/50 p-4">
@@ -658,7 +661,7 @@ export default function SkuWorkbench() {
         )}
 
         {/* Pending Rejected Section - Only show if there are items */}
-        {pendingRejectedDB.length > 0 && (
+        {pendingRejected.length > 0 && (
           <div className="mx-auto w-full max-w-6xl">
             <section className="w-full">
               <div className="mb-6 flex items-center gap-4">
@@ -668,7 +671,7 @@ export default function SkuWorkbench() {
                 {isAdmin && <span className="text-xs text-orange-400 font-mono">Admin: Review for final rejection</span>}
               </div>
               <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {pendingRejectedDB.map((item) => (
+                {pendingRejected.map((item) => (
                   <ProductTile<Item>
                     key={item.id}
                     item={item}
