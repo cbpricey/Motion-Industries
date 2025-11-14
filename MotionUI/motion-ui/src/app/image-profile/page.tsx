@@ -76,7 +76,8 @@ export default function ImageProfilePage() {
             { cache: "no-store" }
           );
           if (sibRes.ok) {
-            const arr = (await sibRes.json()) as ItemRecord[];
+            const resJson = await sibRes.json() 
+            const arr = (resJson.results) as ItemRecord[];
             setSiblings(arr.filter((r) => r.image_url !== rec?.image_url));
           }
         }

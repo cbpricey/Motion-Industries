@@ -34,6 +34,10 @@ export async function GET(req: NextRequest) {
   const to = searchParams.get("to");         // ISO date
   const sort = searchParams.get("sort");     // relevance|confidence_desc|newest|oldest
 
+  // "cursor" (the sort value from the last page)
+  const searchAfter = searchParams.get("cursor");
+  const pageSize = 100;
+
   try {
     const must: ESQuery[] = [];
     const should: ESQuery[] = [];
@@ -99,30 +103,32 @@ export async function GET(req: NextRequest) {
 
 
     // ES takes a list of sort parameters, in order of priority
-    let sortClause;
     // But if we implement multiple parameters, this switch will need to be refactored
+    // Sort must be deterministic when using search_after
+    let sortClause;
     switch (sort) {
       case "confidence_desc":
-        sortClause = [{ confidence: { order: "desc" as const } }];
+        sortClause = [{ confidence: {order: "desc" as const} }, { timestamp: {order: "asc" as const} }];
         break;
       case "newest":
-        sortClause = [{ timestamp: { order: "desc" as const } }];
+        sortClause = [{ timestamp: {order: "desc" as const} }, { confidence: {order: "desc" as const} }];
         break;
       case "oldest":
-        sortClause = [{ timestamp: { order: "asc" as const } }];
+        sortClause = [{ timestamp: {order: "asc" as const} }, { confidence: {order: "desc" as const} }];
         break;
-      case "relevance":
       default:
-        // Relevance uses _score, which is default when no sort is set
-        sortClause = ["_score"];
+        sortClause = [{ _score: {order: "desc" as const} }, { timestamp: {order: "asc" as const} }];
         break;
     }
 
+    const searchAfterArray = searchAfter ? JSON.parse(searchAfter) : undefined;
+
     const result = await client.search({
       index: "image_metadata",
-      size: 100,
+      size: pageSize,
       query,
       sort: sortClause,
+      ...(searchAfterArray ? { search_after: searchAfterArray } : {}),
     });
 
     const docs: ProductDoc[] = result.hits.hits.map((hit) => {
@@ -147,7 +153,17 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    return NextResponse.json(docs);
+    // Include sort values of last hit for next request
+    const nextSearchAfter =
+      result.hits.hits.length > 0
+        ? result.hits.hits[result.hits.hits.length - 1].sort
+        : null;
+
+    return NextResponse.json({
+      results: docs,
+      nextCursor: nextSearchAfter, // use this as search_after in next request
+      total: result.hits.total?.valueOf ?? 0,
+    });
   } catch (error) {
     console.error("Elastic query failed:", error);
     return NextResponse.json({ error: "Failed to fetch products" }, { status: 500 });

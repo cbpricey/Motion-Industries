@@ -70,6 +70,10 @@ export default function SkuWorkbench() {
   const from = searchParams.get("from") ?? undefined;
   const to = searchParams.get("to") ?? undefined;
 
+  // search_after cursor
+  const [cursor, setCursor] = useState(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+
   const [selectedSku, setSelectedSku] = useState<string>(selectedSkuParam);
   const [pending, setPending] = useState<Item[]>([]);
   const [approved, setApproved] = useState<Item[]>([]);
@@ -133,7 +137,9 @@ export default function SkuWorkbench() {
         console.log("[SKU Workbench] fetch:", url);
         const res = await fetch(url, { cache: "no-store" });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = (await res.json()) as Item[];
+        const resJson = await res.json() 
+        const data = resJson.results as Item[];
+        setCursor(resJson.nextCursor)
         console.log("[SKU Workbench] results:", data.length);
         setPending(data);
       } catch (e) {
@@ -157,7 +163,8 @@ export default function SkuWorkbench() {
         console.log("[SKU Workbench] fetch pending_accept:", url);
         const res = await fetch(url, { cache: "no-store" });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = (await res.json()) as Item[];
+        const resJson = await res.json() 
+        const data = resJson.results as Item[];
         console.log("[SKU Workbench] pending_accept results:", data.length);
         setPendingAccept(data);
       } catch (e) {
@@ -181,7 +188,8 @@ export default function SkuWorkbench() {
         console.log("[SKU Workbench] fetch pending_rejected:", url);
         const res = await fetch(url, { cache: "no-store" });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = (await res.json()) as Item[];
+        const resJson = await res.json() 
+        const data = resJson.results as Item[];
         console.log("[SKU Workbench] pending_rejected results:", data.length);
         setPendingRejectedDB(data);
       } catch (e) {
@@ -415,6 +423,20 @@ export default function SkuWorkbench() {
     setItemToReject(null);
   }
 
+  async function loadMore() {
+    setLoadingMore(true);
+
+    const qp = new URLSearchParams();
+    if (cursor) qp.set("cursor", JSON.stringify(cursor));
+
+    const res = await fetch(`/api/products?${qp.toString()}`);
+    const data = await res.json();
+
+    setPending(prev => [...prev, ...data.results]);
+    setCursor(data.nextCursor);
+    setLoadingMore(false);
+  }
+
   // NOW CHECK AUTH STATUS - AFTER ALL HOOKS
   if (authStatus === "loading") {
     return (
@@ -643,6 +665,14 @@ export default function SkuWorkbench() {
           </div>
         )}
       </div>
+
+      <div className="flex justify-center py-6">
+        <button onClick={loadMore} disabled={!cursor || loadingMore}
+        className="inline-flex items-center justify-center gap-2 rounded-lg border-2 border-[#4C0F0F] bg-[#6B0F1A] px-3 py-2 text-xs font-black uppercase tracking-wider text-white transition-colors hover:bg-[#4C0F0F] disabled:opacity-50">
+          Show More
+        </button>
+      </div>
+
 
       {/* Footer */}
       <div className="relative border-t-2 border-red-900 px-6 py-8">

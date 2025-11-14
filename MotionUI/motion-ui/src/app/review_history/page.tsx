@@ -30,6 +30,10 @@ export default function ReviewHistoryPage() {
   const [error, setError] = useState<string | null>(null);
   const [scrollY, setScrollY] = useState(0);
 
+  // search_after cursor
+  const [cursor, setCursor] = useState(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+
   // Fetch data from the API
   useEffect(() => {
     const fetchReviewHistory = async () => {
@@ -62,9 +66,9 @@ export default function ReviewHistoryPage() {
 
         const response = await fetch(url, { cache: "no-store" });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
         const raw = await response.json();
-        const rows = Array.isArray(raw) ? raw : raw.items ?? [];
+        const rows = Array.isArray(raw) ? raw : raw.results ?? [];
+        setCursor(raw.nextCursor)
 
         // Normalize, exclude *plain* pending (unreviewed) from history
         const allowed = ["approved", "rejected", "pending_approval", "pending_rejected"];
@@ -97,6 +101,20 @@ export default function ReviewHistoryPage() {
 
     fetchReviewHistory();
   }, [filter]); // Re-run when the filter changes
+
+  async function loadMore() {
+    setLoadingMore(true);
+
+    const qp = new URLSearchParams();
+    if (cursor) qp.set("cursor", JSON.stringify(cursor));
+
+    const res = await fetch(`/api/products?${qp.toString()}`);
+    const data = await res.json();
+
+    setReviewHistory(prev => [...prev, ...data.results]);
+    setCursor(data.nextCursor);
+    setLoadingMore(false);
+  }
 
   // Background scroll parallax
   useEffect(() => {
@@ -235,6 +253,13 @@ export default function ReviewHistoryPage() {
             </div>
           ))}
         </div>
+      </div>
+
+      <div className="flex justify-center py-6">
+        <button onClick={loadMore} disabled={!cursor || loadingMore}
+        className="inline-flex items-center justify-center gap-2 rounded-lg border-2 border-[#4C0F0F] bg-[#6B0F1A] px-3 py-2 text-xs font-black uppercase tracking-wider text-white transition-colors hover:bg-[#4C0F0F] disabled:opacity-50">
+          Show More
+        </button>
       </div>
 
       {/* Footer */}
