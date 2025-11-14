@@ -87,6 +87,7 @@ export default function SkuWorkbench() {
   // Modal state
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
   const [itemToReject, setItemToReject] = useState<Item | null>(null);
+  const [rejectionComment, setRejectionComment] = useState("");
 
   const userRole = session?.user?.role;
   const isAdmin = userRole === "admin";
@@ -324,36 +325,9 @@ export default function SkuWorkbench() {
       isAdmin,
     });
 
-    // If admin, show modal for confirmation then reject immediately
-    if (isAdmin) {
-      setItemToReject(item);
-      setIsRejectModalOpen(true);
-    } else {
-      // Non-admin: Set status to pending_rejected
-      try {
-        const res = await fetch(`/api/products/${item.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            status: "pending_rejected",
-          }),
-        });
-
-        if (!res.ok) {
-          const errorText = await res.text();
-          console.error("Failed to update status:", errorText);
-          alert("Failed to submit for rejection");
-          return;
-        }
-
-        // Move to pending rejected list and refresh
-        setPendingRejectedDB((prev) => [...prev, item]);
-        setPending((prev) => prev.filter((r) => r !== item));
-      } catch (e) {
-        console.error("Error updating product status:", e);
-        alert("An error occurred while submitting for rejection");
-      }
-    }
+    // Show modal for both admin and non-admin to get rejection comment
+    setItemToReject(item);
+    setIsRejectModalOpen(true);
   }
 
   async function handlePendingReject(item: Item) {
@@ -364,30 +338,47 @@ export default function SkuWorkbench() {
   async function confirmReject() {
     if (!itemToReject) return;
 
-    // Check if this is from pending list or direct admin action
-    const isFromPending = pendingRejectedDB.includes(itemToReject);
-    
-    // If from pending, check admin privilege
-    if (isFromPending && userRole !== "admin") {
+    // Check if this is from pendingRejectedDB (awaiting admin final rejection)
+    const isFromPendingRejected = pendingRejectedDB.includes(itemToReject);
+
+    // If from pendingRejectedDB, check admin privilege
+    if (isFromPendingRejected && userRole !== "admin") {
       alert("Only administrators can finalize rejections.");
       setIsRejectModalOpen(false);
       setItemToReject(null);
+      setRejectionComment("");
       return;
+    }
+
+    // Determine the target status based on role and source
+    let targetStatus: string;
+    if (isFromPendingRejected) {
+      // Admin finalizing a pending rejection
+      targetStatus = "rejected";
+    } else if (isAdmin) {
+      // Admin rejecting directly from pending list
+      targetStatus = "rejected";
+    } else {
+      // Non-admin submitting for rejection from pending list
+      targetStatus = "pending_rejected";
     }
 
     console.log("[SKU Workbench] confirmReject", {
       sku: itemToReject.sku_number ?? itemToReject.sku,
       img: itemToReject.image_url,
       isAdmin,
-      isFromPending,
+      isFromPendingRejected,
+      targetStatus,
+      comment: rejectionComment,
     });
-    
+
     try {
       const res = await fetch(`/api/products/${itemToReject.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          status: "rejected",
+          status: targetStatus,
+          rejection_comment: rejectionComment,
         }),
       });
 
@@ -401,12 +392,19 @@ export default function SkuWorkbench() {
         return;
       }
 
-      // Move to rejected from either pending or pendingRejectedDB
-      setRejected((prev) => [...prev, itemToReject]);
+      // Update UI based on target status
+      if (targetStatus === "rejected") {
+        // Move to rejected list
+        setRejected((prev) => [...prev, itemToReject]);
 
-      if (isFromPending) {
-        setPendingRejectedDB((prev) => prev.filter((r) => r !== itemToReject));
-      } else {
+        if (isFromPendingRejected) {
+          setPendingRejectedDB((prev) => prev.filter((r) => r !== itemToReject));
+        } else {
+          setPending((prev) => prev.filter((r) => r !== itemToReject));
+        }
+      } else if (targetStatus === "pending_rejected") {
+        // Move to pending rejected list (non-admin action)
+        setPendingRejectedDB((prev) => [...prev, itemToReject]);
         setPending((prev) => prev.filter((r) => r !== itemToReject));
       }
     } catch (err) {
@@ -415,12 +413,14 @@ export default function SkuWorkbench() {
     } finally {
       setIsRejectModalOpen(false);
       setItemToReject(null);
+      setRejectionComment(""); // Clear the comment
     }
   }
 
   function cancelReject() {
     setIsRejectModalOpen(false);
     setItemToReject(null);
+    setRejectionComment(""); // Clear the comment
   }
 
   async function loadMore() {
@@ -471,9 +471,25 @@ export default function SkuWorkbench() {
       {/* Modal */}
       {isRejectModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="w-full max-w-md rounded-lg bg-zinc-900 p-6 text-center">
-            <h2 className="mb-4 text-xl font-bold text-red-500">Are you sure?</h2>
-            <p className="mb-6 text-gray-300">Do you really want to reject this item? This action cannot be undone.</p>
+          <div className="w-full max-w-md rounded-lg bg-zinc-900 p-6">
+            <h2 className="mb-4 text-center text-xl font-bold text-red-500">Reject Item</h2>
+            <p className="mb-4 text-center text-gray-300">Do you really want to reject this item?</p>
+
+            {/* Comment textarea */}
+            <div className="mb-6">
+              <label htmlFor="rejection-comment" className="mb-2 block text-left text-sm font-semibold text-gray-300">
+                Reason for rejection (optional):
+              </label>
+              <textarea
+                id="rejection-comment"
+                value={rejectionComment}
+                onChange={(e) => setRejectionComment(e.target.value)}
+                placeholder="Enter reason for rejection..."
+                className="w-full rounded-md border border-zinc-700 bg-zinc-800 p-3 text-sm text-white placeholder-gray-500 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500"
+                rows={4}
+              />
+            </div>
+
             <div className="flex justify-center gap-4">
               <button
                 onClick={confirmReject}

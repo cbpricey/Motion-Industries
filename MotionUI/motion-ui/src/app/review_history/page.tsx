@@ -21,10 +21,11 @@ interface ReviewHistoryItem {
   status: "pending_approval" | "accepted" | "pending_rejected" | "rejected";
   created_at?: string;
   confidence_score: number;
+  rejection_comment?: string;
 }
 
 export default function ReviewHistoryPage() {
-  const [filter, setFilter] = useState<FilterType>("all");
+  const [filter, setFilter] = useState<FilterType>("pending_approval");
   const [reviewHistory, setReviewHistory] = useState<ReviewHistoryItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -87,6 +88,7 @@ export default function ReviewHistoryPage() {
                 : (d.status as string), // keeps pending_approval / pending_rejected
             created_at: (d.reviewed_at ?? d.created_at ?? d.updated_at ?? null) as string | null,
             confidence_score: (d.confidence_score ?? 0) as number,
+            rejection_comment: (d.rejection_comment ?? "") as string,
           }));
 
         setReviewHistory(arr);
@@ -220,18 +222,25 @@ export default function ReviewHistoryPage() {
               key={r.id}
               className="flex items-center justify-between rounded-xl border-2 border-red-900/50 bg-zinc-950 p-4 hover:border-red-600 transition-all"
             >
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4 flex-1">
                 <img
                   src={r.image_url}
                   alt={r.title}
                   className="h-20 w-20 rounded-lg border border-red-900/30 object-contain bg-zinc-900"
                 />
-                <div>
+                <div className="flex-1">
                   <div className="text-lg font-black">{r.title}</div>
                   <div className="text-sm text-gray-400">{r.manufacturer}</div>
                   <div className="text-xs text-gray-500">
                     Reviewed {r.created_at ? new Date(r.created_at).toLocaleString() : "—"}
                   </div>
+                  {/* Display rejection comment if it exists and status is rejected or pending_rejected */}
+                  {(r.status === "rejected" || r.status === "pending_rejected") && r.rejection_comment && (
+                    <div className="mt-2 rounded-md border border-red-900/40 bg-red-950/30 p-2">
+                      <div className="text-xs font-semibold text-red-400 mb-1">Rejection Reason:</div>
+                      <div className="text-xs text-gray-300">{r.rejection_comment}</div>
+                    </div>
+                  )}
                 </div>
               </div>
 

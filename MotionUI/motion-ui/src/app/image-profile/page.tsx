@@ -29,6 +29,7 @@ interface ItemRecord {
   height?: number;
   filesize_kb?: number;
   mime_type?: string;
+  rejection_comment?: string;
   [key: string]: unknown;
 }
 
@@ -49,6 +50,7 @@ export default function ImageProfilePage() {
   const [error, setError] = useState<string | null>(null);
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false); // Modal state
   const [showCopiedNotification, setShowCopiedNotification] = useState(false); // Copied notification state
+  const [rejectionComment, setRejectionComment] = useState(""); // Rejection comment state
 
   useEffect(() => {
     const onScroll = () => setScrollY(window.scrollY);
@@ -134,15 +136,16 @@ function reject() {
 }
 
 async function confirmReject() {
-  console.log("[ImageProfile] Reject confirmed", { sku, image: display?.image_url });
+  console.log("[ImageProfile] Reject confirmed", { sku, image: display?.image_url, comment: rejectionComment });
   setIsRejectModalOpen(false); // Close the modal
-  
+
   try {
     const res = await fetch(`/api/products/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         status: "pending_rejected",
+        rejection_comment: rejectionComment,
       }),
     });
 
@@ -154,6 +157,7 @@ async function confirmReject() {
 
     // Update local state
     setRecord((prev) => prev ? { ...prev, status: "pending_rejected" } : null);
+    setRejectionComment(""); // Clear the comment after successful rejection
     // alert("Status updated to Pending Rejected");
   } catch (e) {
     console.error("Error updating product status:", e);
@@ -163,6 +167,7 @@ async function confirmReject() {
 
   function cancelReject() {
     setIsRejectModalOpen(false); // Close the modal
+    setRejectionComment(""); // Clear the comment
   }
 
   const metaPairs = useMemo(() => {
@@ -185,9 +190,25 @@ async function confirmReject() {
       {/* Modal */}
       {isRejectModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="w-full max-w-md rounded-lg bg-zinc-900 p-6 text-center">
-            <h2 className="mb-4 text-xl font-bold text-red-500">Are you sure?</h2>
-            <p className="mb-6 text-gray-300">Do you really want to reject this image? This action cannot be undone.</p>
+          <div className="w-full max-w-md rounded-lg bg-zinc-900 p-6">
+            <h2 className="mb-4 text-center text-xl font-bold text-red-500">Reject Image</h2>
+            <p className="mb-4 text-center text-gray-300">Do you really want to reject this image?</p>
+
+            {/* Comment textarea */}
+            <div className="mb-6">
+              <label htmlFor="rejection-comment" className="mb-2 block text-left text-sm font-semibold text-gray-300">
+                Reason for rejection (optional):
+              </label>
+              <textarea
+                id="rejection-comment"
+                value={rejectionComment}
+                onChange={(e) => setRejectionComment(e.target.value)}
+                placeholder="Enter reason for rejection..."
+                className="w-full rounded-md border border-zinc-700 bg-zinc-800 p-3 text-sm text-white placeholder-gray-500 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500"
+                rows={4}
+              />
+            </div>
+
             <div className="flex justify-center gap-4">
               <button
                 onClick={confirmReject}
@@ -284,6 +305,19 @@ async function confirmReject() {
               </span>
             )}
           </div>
+
+          {/* Display rejection comment if exists */}
+          {display.rejection_comment && (display.status === "rejected" || display.status === "pending_rejected") && (
+            <div className="mt-4 rounded-xl border-2 border-red-900/50 bg-red-950/20 p-4">
+              <div className="mb-2 flex items-center gap-2">
+                <XCircle className="h-5 w-5 text-red-500" />
+                <h3 className="font-mono text-sm font-bold uppercase tracking-wider text-red-400">
+                  Rejection Reason
+                </h3>
+              </div>
+              <p className="text-sm text-gray-300">{display.rejection_comment}</p>
+            </div>
+          )}
         </div>
 
         {/* Main content */}

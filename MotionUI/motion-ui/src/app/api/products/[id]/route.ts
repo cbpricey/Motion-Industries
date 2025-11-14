@@ -52,6 +52,7 @@ export async function GET(
       image_url: (src.image_url as string) ?? "",
       confidence_score: confidence_score,
       status: (src.status as string) ?? "pending",
+      rejection_comment: (src.rejection_comment as string) ?? "",
     };
 
     return NextResponse.json(product);
@@ -74,7 +75,7 @@ export async function PATCH(
 
   try {
     const body = await req.json();
-    const { status } = body;
+    const { status, rejection_comment } = body;
 
     if (!status) {
       return NextResponse.json(
@@ -83,10 +84,18 @@ export async function PATCH(
       );
     }
 
+    // Prepare the document update
+    const doc: Record<string, unknown> = { status };
+
+    // Include rejection_comment if provided
+    if (rejection_comment !== undefined) {
+      doc.rejection_comment = rejection_comment;
+    }
+
     const result = await client.update({
       index: INDEX,
       id,
-      doc: { status },
+      doc,
       doc_as_upsert: false, // do not create if it doesn't already exist
     });
 
@@ -99,6 +108,7 @@ export async function PATCH(
         body: JSON.stringify({
           id,
           user_action: status, // "approved" or "rejected"
+          rejection_comment: rejection_comment || "", // Include rejection comment if provided
         }),
       }).catch(err => console.error("Feedback recording failed:", err));
     }

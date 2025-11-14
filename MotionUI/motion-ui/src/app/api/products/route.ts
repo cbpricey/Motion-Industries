@@ -13,6 +13,7 @@ interface ProductDoc {
   confidence_score: number; // from doc if present
   status: string;
   created_at?: string;
+  rejection_comment?: string;
 }
 
 const client = new Client({
@@ -150,6 +151,7 @@ export async function GET(req: NextRequest) {
         created_at: src.created_at as string | undefined,
         confidence_score: confidence_score,
         status: (src.status as string) ?? "pending",
+        rejection_comment: (src.rejection_comment as string) ?? "",
       };
     });
 
