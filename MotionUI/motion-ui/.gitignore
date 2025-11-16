@@ -42,3 +42,6 @@ next-env.d.ts
 
 # Review feedback
 Output/
+# prisma
+/src/generated/prisma
+/prisma/prisma/dev.db

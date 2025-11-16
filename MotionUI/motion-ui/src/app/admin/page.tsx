@@ -8,7 +8,7 @@ interface User {
   name?: string;
   email?: string;
   role?: string;
-  created_at?: string;
+  createdAt?: string;
 }
 
 export default function AdminPage() {
@@ -23,17 +23,8 @@ export default function AdminPage() {
         setUsers(data);
       }
     }
-
-    if (session?.user?.role === "admin") {
-      fetchUsers();
-    }
-  }, [session]);
-
-  if (status === "loading") return <p>Loading session...</p>;
-
-  if (session?.user?.role !== "admin") {
-    return <p>Access denied. Admins only.</p>;
-  }
+    fetchUsers();
+  }, []);
 
   return (
     <div style={{ padding: "2rem" }}>
@@ -54,7 +45,7 @@ export default function AdminPage() {
               <td>{u.email}</td>
               <td>{u.name}</td>
               <td>{u.role}</td>
-              <td>{u.created_at ? new Date(u.created_at).toLocaleString() : 'N/A'}</td>
+              <td>{u.createdAt ? new Date(u.createdAt).toLocaleString() : 'N/A'}</td>
             </tr>
           ))}
         </tbody>
