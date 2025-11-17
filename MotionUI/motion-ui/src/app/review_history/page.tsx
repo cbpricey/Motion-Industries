@@ -10,7 +10,7 @@ import { Clock, CheckCircle2, XCircle, History, Filter } from "lucide-react";
  */
 
 // keep existing types, just extend the filter options
-type FilterType = "all" | "pending_accept" | "accepted" | "pending_rejected" | "rejected";
+type FilterType = "all" | "pending-approve" | "accepted" | "pending-reject" | "rejected";
 
 interface ReviewHistoryItem {
   id: number | string;
@@ -18,14 +18,14 @@ interface ReviewHistoryItem {
   manufacturer: string;
   image_url: string;
   // include both pending_* states; exclude plain "pending" from history
-  status: "pending_accept" | "accepted" | "pending_rejected" | "rejected";
+  status: "pending-approve" | "accepted" | "pending-reject" | "rejected";
   created_at?: string;
   confidence_score: number;
   rejection_comment?: string;
 }
 
 export default function ReviewHistoryPage() {
-  const [filter, setFilter] = useState<FilterType>("pending_accept");
+  const [filter, setFilter] = useState<FilterType>("pending-approve");
   const [reviewHistory, setReviewHistory] = useState<ReviewHistoryItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -52,10 +52,10 @@ export default function ReviewHistoryPage() {
             ? "approved"
             : filter === "rejected"
             ? "rejected"
-            : filter === "pending_accept"
-            ? "pending_accept"
-            : filter === "pending_rejected"
-            ? "pending_rejected"
+            : filter === "pending-approve"
+            ? "pending-approve"
+            : filter === "pending-reject"
+            ? "pending-reject"
             : null;
 
         if (statusForApi) qp.set("status", statusForApi);
@@ -72,7 +72,7 @@ export default function ReviewHistoryPage() {
         setCursor(raw.nextCursor)
 
         // Normalize, exclude *plain* pending (unreviewed) from history
-        const allowed = ["approved", "rejected", "pending_accept", "pending_rejected"];
+        const allowed = ["approved", "rejected", "pending-approve", "pending-reject"];
         const arr: ReviewHistoryItem[] = rows
           .filter((d: Record<string, unknown>) => allowed.includes(d.status as string))
           .map((d: Record<string, unknown>) => ({
@@ -85,7 +85,7 @@ export default function ReviewHistoryPage() {
                 ? "accepted"
                 : d.status === "rejected"
                 ? "rejected"
-                : (d.status as string), // keeps pending_accept / pending_rejected
+                : (d.status as string), // keeps pending-approve / pending-reject
             created_at: (d.reviewed_at ?? d.created_at ?? d.updated_at ?? null) as string | null,
             confidence_score: (d.confidence_score ?? 0) as number,
             rejection_comment: (d.rejection_comment ?? "") as string,
@@ -187,7 +187,7 @@ export default function ReviewHistoryPage() {
 
         {/* Filters (now includes pending_* buttons) */}
         <div className="mb-10 flex flex-wrap gap-3">
-          {(["pending_accept", "pending_rejected", "accepted", "rejected"] as FilterType[]).map((f) => (
+          {(["pending-approve", "pending-reject", "accepted", "rejected"] as FilterType[]).map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
@@ -234,8 +234,8 @@ export default function ReviewHistoryPage() {
                   <div className="text-xs text-gray-500">
                     Reviewed {r.created_at ? new Date(r.created_at).toLocaleString() : "—"}
                   </div>
-                  {/* Display rejection comment if it exists and status is rejected or pending_rejected */}
-                  {(r.status === "rejected" || r.status === "pending_rejected") && r.rejection_comment && (
+                  {/* Display rejection comment if it exists and status is rejected or pending-reject */}
+                  {(r.status === "rejected" || r.status === "pending-reject") && r.rejection_comment && (
                     <div className="mt-2 rounded-md border border-red-900/40 bg-red-950/30 p-2">
                       <div className="text-xs font-semibold text-red-400 mb-1">Rejection Reason:</div>
                       <div className="text-xs text-gray-300">{r.rejection_comment}</div>
@@ -244,15 +244,15 @@ export default function ReviewHistoryPage() {
                 </div>
               </div>
 
-              {/* Green for accepted/pending_accept, Red for rejected/pending_rejected */}
+              {/* Green for accepted/pending-approve, Red for rejected/pending-reject */}
               <div
                 className={`inline-flex items-center gap-2 rounded-md px-3 py-1 font-mono text-sm border ${
-                  r.status === "accepted" || r.status === "pending_accept"
+                  r.status === "accepted" || r.status === "pending-approve"
                     ? "bg-green-600/20 text-green-400 border-green-700"
                     : "bg-red-600/20 text-red-400 border-red-700"
                 }`}
               >
-                {r.status === "accepted" || r.status === "pending_accept" ? (
+                {r.status === "accepted" || r.status === "pending-approve" ? (
                   <CheckCircle2 className="h-4 w-4" />
                 ) : (
                   <XCircle className="h-4 w-4" />

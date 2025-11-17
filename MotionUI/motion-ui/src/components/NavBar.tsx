@@ -7,6 +7,8 @@ import styles from "./NavBar.module.css";
 export default function NavBar() {
   const { data: session, status } = useSession();
 
+  console.log(session);
+
   return (
     <div className={styles.container}>
       <nav className={styles.navbar}>
@@ -24,9 +26,12 @@ export default function NavBar() {
             <li className={styles.item}>
               <Link href="/review_history">Review History</Link>
             </li>
-            <li className={styles.item}>
-              <Link href="/admin-crud">User Index</Link>
-            </li>
+            {session?.user?.role?.toUpperCase() === "ADMIN" && (
+              <li className={styles.item}>
+                <Link href="/admin-crud">User Index</Link>
+              </li>
+            )}
+            
           </ul>
 
           {/* --- Authentication Controls --- */}

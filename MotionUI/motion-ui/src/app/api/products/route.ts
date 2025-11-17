@@ -17,7 +17,15 @@ interface ProductDoc {
 }
 
 const client = new Client({
-  node: "http://localhost:9200",
+  node: process.env.ELASTICSEARCH_URL || "http://localhost:9200",
+  auth: process.env.ELASTICSEARCH_API_KEY
+    ? { apiKey: process.env.ELASTICSEARCH_API_KEY }
+    : process.env.ELASTICSEARCH_USERNAME && process.env.ELASTICSEARCH_PASSWORD
+    ? {
+        username: process.env.ELASTICSEARCH_USERNAME,
+        password: process.env.ELASTICSEARCH_PASSWORD,
+      }
+    : undefined,
 });
 
 type ESQuery = Record<string, unknown>;
@@ -89,7 +97,7 @@ export async function GET(req: NextRequest) {
     if (from || to) {
       must.push({
         range: {
-          created_at: {
+          timestamp: {
             ...(from ? { gte: from } : {}),
             ...(to ? { lte: to } : {}),
           },
@@ -148,7 +156,7 @@ export async function GET(req: NextRequest) {
         title: (src.title as string) ?? (src.description as string) ?? `${(src.manufacturer as string) ?? ""} ${normalizedSku}`.trim(),
         description: (src.description as string) ?? "",
         image_url: (src.image_url as string) ?? "",
-        created_at: src.created_at as string | undefined,
+        created_at: undefined,
         confidence_score: confidence_score,
         status: (src.status as string) ?? "pending",
         rejection_comment: (src.rejection_comment as string) ?? "",
@@ -162,7 +170,7 @@ export async function GET(req: NextRequest) {
         : null;
 
     return NextResponse.json({
-      results: docs,
+      results: docs ?? [],
       nextCursor: nextSearchAfter, // use this as search_after in next request
       total: result.hits.total?.valueOf ?? 0,
     });

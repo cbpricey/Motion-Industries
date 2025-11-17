@@ -112,7 +112,7 @@ async function approve() {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        status: "pending_approval",
+        status: "approved",
       }),
     });
 
@@ -123,7 +123,7 @@ async function approve() {
     }
 
     // Update local state
-    setRecord((prev) => prev ? { ...prev, status: "pending_approval" } : null);
+    setRecord((prev) => prev ? { ...prev, status: "pending-approve" } : null);
     // alert("Status updated to Pending Approval");
   } catch (e) {
     console.error("Error updating product status:", e);
@@ -144,7 +144,7 @@ async function confirmReject() {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        status: "pending_rejected",
+        status: "rejected",
         rejection_comment: rejectionComment,
       }),
     });
@@ -156,7 +156,7 @@ async function confirmReject() {
     }
 
     // Update local state
-    setRecord((prev) => prev ? { ...prev, status: "pending_rejected" } : null);
+    setRecord((prev) => prev ? { ...prev, status: "pending-reject" } : null);
     setRejectionComment(""); // Clear the comment after successful rejection
     // alert("Status updated to Pending Rejected");
   } catch (e) {
@@ -307,7 +307,7 @@ async function confirmReject() {
           </div>
 
           {/* Display rejection comment if exists */}
-          {display.rejection_comment && (display.status === "rejected" || display.status === "pending_rejected") && (
+          {display.rejection_comment && (display.status === "rejected" || display.status === "pending-reject") && (
             <div className="mt-4 rounded-xl border-2 border-red-900/50 bg-red-950/20 p-4">
               <div className="mb-2 flex items-center gap-2">
                 <XCircle className="h-5 w-5 text-red-500" />

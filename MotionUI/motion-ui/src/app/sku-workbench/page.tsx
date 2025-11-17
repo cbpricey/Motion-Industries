@@ -10,7 +10,7 @@ import ProductTile from "../../components/ProductTile";
 type Item = ReviewCardProps & {
   sku_number?: string;
   sku?: string;
-  id?: number | string
+  id?: number | string;
 };
 
 /* ───────────────────────── Grid ───────────────────────── */
@@ -30,12 +30,16 @@ function PendingGrid({
     <section className="w-full">
       <div className="mb-6 flex items-center gap-4">
         <div className="h-4 w-4 rotate-45 bg-red-600" />
-        <h2 className="text-2xl font-black uppercase tracking-wider">{title}</h2>
+        <h2 className="text-2xl font-black uppercase tracking-wider">
+          {title}
+        </h2>
         <div className="h-px flex-1 bg-red-900" />
       </div>
 
       {items.length === 0 ? (
-        <p className="my-8 text-center text-sm text-gray-400">No results for this filter.</p>
+        <p className="my-8 text-center text-sm text-gray-400">
+          No results for this filter.
+        </p>
       ) : (
         <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {items.map((item, idx) => (
@@ -58,11 +62,13 @@ export default function SkuWorkbench() {
   // ALL HOOKS MUST BE AT THE TOP - BEFORE ANY CONDITIONAL RETURNS
   const { data: session, status: authStatus } = useSession();
   const searchParams = useSearchParams();
+  const router = useRouter();
 
   // Read ALL possible filters from URL
   const mode = searchParams.get("mode") ?? undefined;
   const manufacturer = searchParams.get("manufacturer") ?? undefined;
-  const selectedSkuParam = searchParams.get("sku_number") ?? searchParams.get("sku") ?? "All";
+  const selectedSkuParam =
+    searchParams.get("sku_number") ?? searchParams.get("sku") ?? "All";
   const skuPrefix = searchParams.get("sku_prefix") ?? undefined;
   const minConfidence = searchParams.get("min_confidence") ?? undefined;
   const statusFilter = searchParams.get("status") ?? undefined;
@@ -78,8 +84,8 @@ export default function SkuWorkbench() {
   const [pending, setPending] = useState<Item[]>([]);
   const [approved, setApproved] = useState<Item[]>([]);
   const [rejected, setRejected] = useState<Item[]>([]);
-  const [pendingRejected, setPendingRejected] = useState<Item[]>([]);
-  const [pendingAccept, setPendingAccept] = useState<Item[]>([]);
+  const [pendingApproval, setPendingApproval] = useState<Item[]>([]);
+  const [pendingRejection, setPendingRejection] = useState<Item[]>([]);
   const [scrollY, setScrollY] = useState(0);
 
   // Modal state
@@ -88,7 +94,7 @@ export default function SkuWorkbench() {
   const [rejectionComment, setRejectionComment] = useState("");
 
   const userRole = session?.user?.role;
-  const isAdmin = userRole === "admin";
+  const isAdmin = userRole === "ADMIN";
 
   // Debug: Log user role on mount and when session changes
   useEffect(() => {
@@ -105,9 +111,7 @@ export default function SkuWorkbench() {
   const skuOptions = useMemo(
     () =>
       Array.from(
-        new Set(
-          pending.map((r) => r.sku_number ?? r.sku).filter(Boolean)
-        )
+        new Set(pending.map((r) => r.sku_number ?? r.sku).filter(Boolean))
       ).sort(),
     [pending]
   );
@@ -122,7 +126,8 @@ export default function SkuWorkbench() {
 
         // Primary filters from URL/state
         if (manufacturer) qp.set("manufacturer", manufacturer);
-        if (selectedSku && selectedSku !== "All") qp.set("sku_number", selectedSku);
+        if (selectedSku && selectedSku !== "All")
+          qp.set("sku_number", selectedSku);
         if (skuPrefix) qp.set("sku_prefix", skuPrefix);
         if (minConfidence) qp.set("min_confidence", minConfidence);
 
@@ -136,9 +141,9 @@ export default function SkuWorkbench() {
         console.log("[SKU Workbench] fetch:", url);
         const res = await fetch(url, { cache: "no-store" });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const resJson = await res.json() 
-        const data = resJson.results as Item[];
-        setCursor(resJson.nextCursor)
+        const resJson = await res.json();
+        const data = Array.isArray(resJson.results) ? resJson.results : [];
+        setCursor(resJson.nextCursor);
         console.log("[SKU Workbench] results:", data.length);
         setPending(data);
       } catch (e) {
@@ -147,61 +152,79 @@ export default function SkuWorkbench() {
       }
     }
     fetchProducts();
-  }, [authStatus, manufacturer, selectedSku, skuPrefix, minConfidence, statusFilter, sort, from, to]);
+  }, [
+    authStatus,
+    manufacturer,
+    selectedSku,
+    skuPrefix,
+    minConfidence,
+    statusFilter,
+    sort,
+    from,
+    to,
+  ]);
 
-  // Fetch pending_accept items
+  // Fetch pending-approve items
   useEffect(() => {
     if (authStatus !== "authenticated") return;
 
-    async function fetchPendingAccept() {
+    async function fetchPendingApproval() {
       try {
         const qp = new URLSearchParams();
-        qp.set("status", "pending_accept");
+        qp.set("status", "pending-approve");
 
         const url = `/api/products?${qp.toString()}`;
-        console.log("[SKU Workbench] fetch pending_accept:", url);
+        console.log("[SKU Workbench] fetch pending-approve:", url);
         const res = await fetch(url, { cache: "no-store" });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const resJson = await res.json() 
-        const data = resJson.results as Item[];
-        console.log("[SKU Workbench] pending_accept results:", data.length);
-        setPendingAccept(data);
+        const json = await res.json();
+        const data = Array.isArray(json.results) ? json.results : [];
+        console.log("[SKU Workbench] pending-approve results:", data.length);
+        setPendingApproval(data);
       } catch (e) {
-        console.error("[SKU Workbench] Failed to fetch pending_accept:", e);
-        setPendingAccept([]);
+        console.error("[SKU Workbench] Failed to fetch pending-approve:", e);
+        setPendingApproval([]);
       }
     }
-    fetchPendingAccept();
+    fetchPendingApproval();
   }, [authStatus]);
 
-  // Fetch pending_rejected items
+  // Fetch pending-reject items
   useEffect(() => {
     if (authStatus !== "authenticated") return;
 
-    async function fetchPendingRejected() {
+    async function fetchPendingRejection() {
       try {
         const qp = new URLSearchParams();
-        qp.set("status", "pending_rejected");
+        qp.set("status", "pending-reject");
 
         const url = `/api/products?${qp.toString()}`;
-        console.log("[SKU Workbench] fetch pending_rejected:", url);
+        console.log("[SKU Workbench] fetch pending-reject:", url);
         const res = await fetch(url, { cache: "no-store" });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const resJson = await res.json() 
-        const data = resJson.results as Item[];
-        console.log("[SKU Workbench] pending_rejected results:", data.length);
-        setPendingRejected(data);
+        const json = await res.json();
+        const data = Array.isArray(json.results) ? json.results : [];
+        console.log("[SKU Workbench] pending-reject results:", data.length);
+        setPendingRejection(data);
       } catch (e) {
-        console.error("[SKU Workbench] Failed to fetch pending_rejected:", e);
-        setPendingRejected([]);
+        console.error("[SKU Workbench] Failed to fetch pending-reject:", e);
+        setPendingRejection([]);
       }
     }
-    fetchPendingRejected();
+    fetchPendingRejection();
   }, [authStatus]);
 
   useEffect(() => {
     console.log("[SKU Workbench] mounted with params:", {
-      mode, manufacturer, selectedSku, skuPrefix, minConfidence, statusFilter, sort, from, to,
+      mode,
+      manufacturer,
+      selectedSku,
+      skuPrefix,
+      minConfidence,
+      statusFilter,
+      sort,
+      from,
+      to,
     });
   }, []);
 
@@ -222,70 +245,37 @@ export default function SkuWorkbench() {
       isAdmin,
     });
 
-    // If admin, approve immediately
-    if (isAdmin) {
-      try {
-        const res = await fetch(`/api/products/${item.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            status: "approved",
-          }),
-        });
+    try {
+      const res = await fetch(`/api/products/${item.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "approved" }),
+      });
+      router.refresh();
 
-        if (!res.ok) {
-          const errorText = await res.text();
-          if (res.status === 403) {
-            alert("Access denied: Admin privileges required");
-          } else {
-            console.error("Failed to update status:", errorText);
-          }
-          return;
-        }
-
-        // Move directly to approved
-        setApproved((prev) => [...prev, item]);
-        setPending((prev) => prev.filter((r) => r !== item));
-      } catch (e) {
-        console.error("Error updating product status:", e);
-        alert("An error occurred while approving the item");
-      }
-    } else {
-      // Non-admin: Set status to pending_accept
-      // Make sure item isn't already pending_accept
-      if (item.status === 'pending_accept') {
-        alert("Only administrators can finalize approvals.");
+      if (!res.ok) {
+        console.error("Failed to update status:", await res.text());
         return;
       }
-      try {
-        const res = await fetch(`/api/products/${item.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            status: "pending_accept",
-          }),
-        });
 
-        if (!res.ok) {
-          const errorText = await res.text();
-          console.error("Failed to update status:", errorText);
-          alert("Failed to submit for approval");
-          return;
-        }
+      const { status: newStatus } = await res.json();
 
-        // Move to pending accept list and refresh
-        setPendingAccept((prev) => [...prev, item]);
-        setPending((prev) => prev.filter((r) => r !== item));
-      } catch (e) {
-        console.error("Error updating product status:", e);
-        alert("An error occurred while submitting for approval");
+      // update local state visually
+      if (newStatus === "pending-approve") {
+        setPendingApproval((prev) => [...prev, item]);
+      } else if (newStatus === "approved") {
+        setApproved((prev) => [...prev, item]);
       }
+
+      setPending((prev) => prev.filter((r) => r !== item));
+    } catch (e) {
+      console.error("Error updating product status:", e);
     }
   }
 
   async function confirmApprove(item: Item) {
     // This is only called for non-admins who need confirmation
-    if (userRole !== "admin") {
+    if (userRole !== "ADMIN") {
       alert("Only administrators can finalize approvals.");
       return;
     }
@@ -314,7 +304,7 @@ export default function SkuWorkbench() {
       }
 
       setApproved((prev) => [...prev, item]);
-      setPendingAccept((prev) => prev.filter((r) => r !== item));
+      setPendingApproval((prev) => prev.filter((r) => r !== item));
     } catch (e) {
       console.error("Error updating product status:", e);
       alert("An error occurred while approving the item");
@@ -341,37 +331,9 @@ export default function SkuWorkbench() {
   async function confirmReject() {
     if (!itemToReject) return;
 
-    // Check if this is from pendingRejectedDB (awaiting admin final rejection)
-    const isFromPendingRejected = pendingRejected.includes(itemToReject);
-
-    // If from pendingRejectedDB, check admin privilege
-    if (isFromPendingRejected && userRole !== "admin") {
-      alert("Only administrators can finalize rejections.");
-      setIsRejectModalOpen(false);
-      setItemToReject(null);
-      setRejectionComment("");
-      return;
-    }
-
-    // Determine the target status based on role and source
-    let targetStatus: string;
-    if (isFromPendingRejected) {
-      // Admin finalizing a pending rejection
-      targetStatus = "rejected";
-    } else if (isAdmin) {
-      // Admin rejecting directly from pending list
-      targetStatus = "rejected";
-    } else {
-      // Non-admin submitting for rejection from pending list
-      targetStatus = "pending_rejected";
-    }
-
     console.log("[SKU Workbench] confirmReject", {
       sku: itemToReject.sku_number ?? itemToReject.sku,
       img: itemToReject.image_url,
-      isAdmin,
-      isFromPendingRejected,
-      targetStatus,
       comment: rejectionComment,
     });
 
@@ -380,35 +342,35 @@ export default function SkuWorkbench() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          status: targetStatus,
+          status: "rejected",
           rejection_comment: rejectionComment,
         }),
       });
 
       if (!res.ok) {
         const errorText = await res.text();
+        console.error("Failed to update status:", errorText);
+
         if (res.status === 403) {
           alert("Access denied: Admin privileges required");
-        } else {
-          console.error("Failed to update status:", errorText);
         }
         return;
       }
 
-      // Update UI based on target status
-      if (targetStatus === "rejected") {
-        // Move to rejected list
-        setRejected((prev) => [...prev, itemToReject]);
+      // Backend decides finalStatus → return { status: "pending-reject" | "rejected" }
+      const { status: newStatus } = await res.json();
 
-        if (isFromPendingRejected) {
-          setPendingRejected((prev) => prev.filter((r) => r !== itemToReject));
-        } else {
-          setPending((prev) => prev.filter((r) => r !== itemToReject));
-        }
-      } else if (targetStatus === "pending_rejected") {
-        // Move to pending rejected list (non-admin action)
-        setPendingRejected((prev) => [...prev, itemToReject]);
-        setPending((prev) => prev.filter((r) => r !== itemToReject));
+      if (newStatus === "rejected") {
+        // Item fully rejected (admin)
+        setRejected((prev) => [...prev, itemToReject]);
+        setPendingRejection((prev) =>
+          prev.filter((r) => r.id !== itemToReject.id)
+        );
+        setPending((prev) => prev.filter((r) => r.id !== itemToReject.id));
+      } else if (newStatus === "pending-reject") {
+        // Reviewer submitted rejection request
+        setPendingRejection((prev) => [...prev, itemToReject]);
+        setPending((prev) => prev.filter((r) => r.id !== itemToReject.id));
       }
     } catch (err) {
       console.error("Error updating product status:", err);
@@ -416,7 +378,7 @@ export default function SkuWorkbench() {
     } finally {
       setIsRejectModalOpen(false);
       setItemToReject(null);
-      setRejectionComment(""); // Clear the comment
+      setRejectionComment("");
     }
   }
 
@@ -435,7 +397,7 @@ export default function SkuWorkbench() {
     const res = await fetch(`/api/products?${qp.toString()}`);
     const data = await res.json();
 
-    setPending(prev => [...prev, ...data.results]);
+    setPending((prev) => [...prev, ...data.results]);
     setCursor(data.nextCursor);
     setLoadingMore(false);
   }
@@ -457,7 +419,9 @@ export default function SkuWorkbench() {
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold mb-4">Authentication Required</h2>
-          <p className="text-gray-400 mb-6">Please sign in to access the SKU Workbench</p>
+          <p className="text-gray-400 mb-6">
+            Please sign in to access the SKU Workbench
+          </p>
           <button
             onClick={() => signIn()}
             className="rounded-md bg-red-600 px-6 py-3 text-sm font-bold text-white hover:bg-red-700 transition"
@@ -475,12 +439,19 @@ export default function SkuWorkbench() {
       {isRejectModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
           <div className="w-full max-w-md rounded-lg bg-zinc-900 p-6">
-            <h2 className="mb-4 text-center text-xl font-bold text-red-500">Reject Item</h2>
-            <p className="mb-4 text-center text-gray-300">Do you really want to reject this item?</p>
+            <h2 className="mb-4 text-center text-xl font-bold text-red-500">
+              Reject Item
+            </h2>
+            <p className="mb-4 text-center text-gray-300">
+              Do you really want to reject this item?
+            </p>
 
             {/* Comment textarea */}
             <div className="mb-6">
-              <label htmlFor="rejection-comment" className="mb-2 block text-left text-sm font-semibold text-gray-300">
+              <label
+                htmlFor="rejection-comment"
+                className="mb-2 block text-left text-sm font-semibold text-gray-300"
+              >
                 Reason for rejection (optional):
               </label>
               <textarea
@@ -523,8 +494,14 @@ export default function SkuWorkbench() {
           }}
         />
       </div>
-      <div className="pointer-events-none absolute right-0 top-0 h-96 w-96 blur-3xl" style={{ backgroundColor: "rgba(220,38,38,0.10)" }} />
-      <div className="pointer-events-none absolute bottom-0 left-0 h-96 w-96 blur-3xl" style={{ backgroundColor: "rgba(220,38,38,0.05)" }} />
+      <div
+        className="pointer-events-none absolute right-0 top-0 h-96 w-96 blur-3xl"
+        style={{ backgroundColor: "rgba(220,38,38,0.10)" }}
+      />
+      <div
+        className="pointer-events-none absolute bottom-0 left-0 h-96 w-96 blur-3xl"
+        style={{ backgroundColor: "rgba(220,38,38,0.05)" }}
+      />
 
       {/* Header */}
       <div className="relative mx-auto w-full max-w-6xl px-6 pt-10">
@@ -537,11 +514,11 @@ export default function SkuWorkbench() {
           </div>
           <div className="h-px flex-1 bg-red-900" />
           {/* Show user role badge */}
-          <div className={`rounded-full px-3 py-1 text-xs font-bold uppercase ${
-            isAdmin 
-              ? "bg-red-600 text-white" 
-              : "bg-gray-700 text-gray-300"
-          }`}>
+          <div
+            className={`rounded-full px-3 py-1 text-xs font-bold uppercase ${
+              isAdmin ? "bg-red-600 text-white" : "bg-gray-700 text-gray-300"
+            }`}
+          >
             {userRole || "reviewer"}
           </div>
         </div>
@@ -557,7 +534,11 @@ export default function SkuWorkbench() {
             <div className="h-1 w-20 bg-red-600" />
             <p className="font-mono text-sm uppercase tracking-widest text-gray-400">
               Approve / Reject • Elastic Filters
-              {isAdmin && <span className="ml-2 text-red-500">• Admin Mode: Direct Actions</span>}
+              {isAdmin && (
+                <span className="ml-2 text-red-500">
+                  • Admin Mode: Direct Actions
+                </span>
+              )}
             </p>
           </div>
 
@@ -586,7 +567,10 @@ export default function SkuWorkbench() {
           <div className="flex items-center gap-3 rounded-lg border-2 border-red-900/50 bg-zinc-950 p-4">
             <Filter className="h-5 w-5 text-red-500" />
             <div className="flex flex-wrap items-center gap-2">
-              <label htmlFor="SKUFilter" className="text-xs font-black uppercase tracking-wider text-gray-300">
+              <label
+                htmlFor="SKUFilter"
+                className="text-xs font-black uppercase tracking-wider text-gray-300"
+              >
                 Filter by SKU
               </label>
               <select
@@ -608,23 +592,41 @@ export default function SkuWorkbench() {
           <div className="grid grid-cols-5 gap-4 md:col-span-2">
             <div className="rounded-lg border-2 border-red-900/30 bg-zinc-900/50 p-4">
               <div className="text-2xl font-black text-red-600">{total}</div>
-              <div className="text-xs font-bold uppercase tracking-wide text-gray-400">Pending Review</div>
+              <div className="text-xs font-bold uppercase tracking-wide text-gray-400">
+                Pending Review
+              </div>
             </div>
             <div className="rounded-lg border-2 border-blue-900/30 bg-zinc-900/50 p-4">
-              <div className="text-2xl font-black text-blue-400">{pendingAccept.length}</div>
-              <div className="text-xs font-bold uppercase tracking-wide text-gray-400">Pending Accept</div>
+              <div className="text-2xl font-black text-blue-400">
+                {pendingApproval.length}
+              </div>
+              <div className="text-xs font-bold uppercase tracking-wide text-gray-400">
+                Pending Approval
+              </div>
             </div>
             <div className="rounded-lg border-2 border-orange-900/30 bg-zinc-900/50 p-4">
-              <div className="text-2xl font-black text-orange-500">{pendingRejected.length}</div>
-              <div className="text-xs font-bold uppercase tracking-wide text-gray-400">Pending Rejected</div>
+              <div className="text-2xl font-black text-orange-500">
+                {pendingRejection.length}
+              </div>
+              <div className="text-xs font-bold uppercase tracking-wide text-gray-400">
+                Pending Rejection
+              </div>
             </div>
             <div className="rounded-lg border-2 border-green-900/30 bg-zinc-900/50 p-4">
-              <div className="text-2xl font-black text-green-500">{approved.length}</div>
-              <div className="text-xs font-bold uppercase tracking-wide text-gray-400">Approved</div>
+              <div className="text-2xl font-black text-green-500">
+                {approved.length}
+              </div>
+              <div className="text-xs font-bold uppercase tracking-wide text-gray-400">
+                Approved
+              </div>
             </div>
             <div className="rounded-lg border-2 border-red-900/30 bg-zinc-900/50 p-4">
-              <div className="text-2xl font-black text-red-500">{rejected.length}</div>
-              <div className="text-xs font-bold uppercase tracking-wide text-gray-400">Rejected</div>
+              <div className="text-2xl font-black text-red-500">
+                {rejected.length}
+              </div>
+              <div className="text-xs font-bold uppercase tracking-wide text-gray-400">
+                Rejected
+              </div>
             </div>
           </div>
         </div>
@@ -633,21 +635,32 @@ export default function SkuWorkbench() {
       {/* Grid */}
       <div className="relative px-6 pb-24 space-y-12">
         <div className="mx-auto w-full max-w-6xl">
-          <PendingGrid items={bySku} onApprove={handleApprove} onReject={handleReject} title="Pending Review" />
+          <PendingGrid
+            items={bySku}
+            onApprove={handleApprove}
+            onReject={handleReject}
+            title="Pending Review"
+          />
         </div>
 
         {/* Pending Accept Section - Only show if there are items */}
-        {pendingAccept.length > 0 && (
+        {pendingApproval.length > 0 && (
           <div className="mx-auto w-full max-w-6xl">
             <section className="w-full">
               <div className="mb-6 flex items-center gap-4">
                 <div className="h-4 w-4 rotate-45 bg-blue-500" />
-                <h2 className="text-2xl font-black uppercase tracking-wider">Pending Accept</h2>
+                <h2 className="text-2xl font-black uppercase tracking-wider">
+                  Pending Approval
+                </h2>
                 <div className="h-px flex-1 bg-blue-900" />
-                {isAdmin && <span className="text-xs text-blue-400 font-mono">Admin: Review for final approval</span>}
+                {isAdmin && (
+                  <span className="text-xs text-blue-400 font-mono">
+                    Admin: Review for final approval
+                  </span>
+                )}
               </div>
               <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {pendingAccept.map((item) => (
+                {pendingApproval.map((item) => (
                   <ProductTile<Item>
                     key={item.id}
                     item={item}
@@ -661,17 +674,23 @@ export default function SkuWorkbench() {
         )}
 
         {/* Pending Rejected Section - Only show if there are items */}
-        {pendingRejected.length > 0 && (
+        {pendingRejection.length > 0 && (
           <div className="mx-auto w-full max-w-6xl">
             <section className="w-full">
               <div className="mb-6 flex items-center gap-4">
                 <div className="h-4 w-4 rotate-45 bg-orange-500" />
-                <h2 className="text-2xl font-black uppercase tracking-wider">Pending Rejected</h2>
+                <h2 className="text-2xl font-black uppercase tracking-wider">
+                  Pending Rejection
+                </h2>
                 <div className="h-px flex-1 bg-orange-900" />
-                {isAdmin && <span className="text-xs text-orange-400 font-mono">Admin: Review for final rejection</span>}
+                {isAdmin && (
+                  <span className="text-xs text-orange-400 font-mono">
+                    Admin: Review for final rejection
+                  </span>
+                )}
               </div>
               <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {pendingRejected.map((item) => (
+                {pendingRejection.map((item) => (
                   <ProductTile<Item>
                     key={item.id}
                     item={item}
@@ -686,23 +705,28 @@ export default function SkuWorkbench() {
       </div>
 
       <div className="flex justify-center py-6">
-        <button onClick={loadMore} disabled={!cursor || loadingMore}
-        className="inline-flex items-center justify-center gap-2 rounded-lg border-2 border-[#4C0F0F] bg-[#6B0F1A] px-3 py-2 text-xs font-black uppercase tracking-wider text-white transition-colors hover:bg-[#4C0F0F] disabled:opacity-50">
+        <button
+          onClick={loadMore}
+          disabled={!cursor || loadingMore}
+          className="inline-flex items-center justify-center gap-2 rounded-lg border-2 border-[#4C0F0F] bg-[#6B0F1A] px-3 py-2 text-xs font-black uppercase tracking-wider text-white transition-colors hover:bg-[#4C0F0F] disabled:opacity-50"
+        >
           Show More
         </button>
       </div>
-
 
       {/* Footer */}
       <div className="relative border-t-2 border-red-900 px-6 py-8">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between">
           <div className="font-mono text-sm text-gray-500">
-            © {new Date().getFullYear()} Capstone Group 2 • {total} result{total === 1 ? "" : "s"}
+            © {new Date().getFullYear()} Capstone Group 2 • {total} result
+            {total === 1 ? "" : "s"}
             {selectedSku !== "All" ? ` • sku_number: ${selectedSku}` : ""}
           </div>
           <div className="flex items-center gap-2">
             <div className="h-2 w-2 animate-pulse rounded-full bg-green-600" />
-            <span className="font-mono text-sm uppercase text-gray-500">Online</span>
+            <span className="font-mono text-sm uppercase text-gray-500">
+              Online
+            </span>
           </div>
         </div>
       </div>
