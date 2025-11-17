@@ -1,31 +1,34 @@
 "use client";
 
 import { useState } from 'react';
-import { Cog, Zap, Users, Flame } from 'lucide-react';
+import { CloudDownload, BrainCog, MonitorCheck, Repeat } from 'lucide-react';
 
 export default function About() {
   const [hoveredCard, setHoveredCard] = useState<number | null>(null);
 
   const values = [
     {
-      icon: <Cog className="w-8 h-8" />,
-      title: "Precision Engineering",
-      description: "Built with industrial-grade standards. Every component crafted for maximum reliability."
+      icon: <CloudDownload className="w-8 h-8" />,
+      title: "Web Scraper",
+      description: `Searches for product images on OEM websites, distributor websites, and Bing. Downloads images 
+      and automatically discards low quality results.`
     },
     {
-      icon: <Zap className="w-8 h-8" />,
-      title: "Raw Power",
-      description: "Uncompromising performance that cuts through complexity like hardened steel."
+      icon: <BrainCog className="w-8 h-8" />,
+      title: "Machine Learning Model",
+      description: `Trained on thousands of examples. Analyzes file names and calculates image features such as brightness, 
+      whitespace, and entropy. Assigns confidence scores to each image to help prioritize human review efforts.`
     },
     {
-      icon: <Users className="w-8 h-8" />,
-      title: "Forged Together",
-      description: "A community of builders, engineers, and creators working in the trenches."
+      icon: <MonitorCheck className="w-8 h-8" />,
+      title: "Review UI",
+      description: `Accessible by clicking "Catalog Navigator" in the navbar. Supports sorting and filtering images by 
+      manufacturer, SKU, confidence score, and date added. Reviewers' approvals and rejections are confirmed by admins.`
     },
     {
-      icon: <Flame className="w-8 h-8" />,
-      title: "Battle-Tested",
-      description: "Hardened in production environments. No compromise, no shortcuts."
+      icon: <Repeat className="w-8 h-8" />,
+      title: "Feedback Loop",
+      description: `Every approval and rejection is recorded and used to continually retrain and refine the ML Model.`
     }
   ];
 
@@ -44,17 +47,17 @@ export default function About() {
         <div className="mb-20">
           <div className="border-l-4 border-red-600 pl-8 mb-8">
             <h1 className="text-7xl font-black text-white mb-4 tracking-tight">
-              ABOUT MOTION UI
+              HOW IT WORKS
             </h1>
             <div className="flex items-center gap-4">
               <div className="h-px bg-red-600 w-20"></div>
               <p className="text-lg text-gray-400 uppercase tracking-widest font-bold">
-                Industrial Grade Motion
+                Behind the Curtain
               </p>
             </div>
           </div>
           <p className="text-xl text-gray-300 max-w-2xl leading-relaxed border-l-2 border-gray-700 pl-8">
-            Engineered for production. Built to withstand the demands of modern web applications.
+            Engineered to support large scale matching of candidate images to SKUs
           </p>
         </div>
 
@@ -65,23 +68,22 @@ export default function About() {
             <div className="flex items-center gap-3 mb-6">
               <div className="w-2 h-2 bg-red-600 rotate-45"></div>
               <h2 className="text-3xl font-black text-white uppercase tracking-wider">
-                The Foundation
+                Background
               </h2>
             </div>
             <div className="text-gray-300 space-y-4 leading-relaxed font-mono text-sm">
               <p>
-                SYSTEM INITIALIZED // Motion UI was forged in the crucible of real-world production 
-                environments. No prototypes. No theory. Just battle-hardened code that ships.
+                The problem: The <a href='https://www.motion.com/' className="text-red-500 hover:text-red-600">Motion.com</a> website 
+                offers millions of different industrial products to businesses across North America. However, out of
+                12 million total SKUs, only 1 million currently have at least one product image.
               </p>
               <p>
-                MISSION PARAMETERS // We engineer motion systems that don&apos;t break under pressure.
-                Every animation optimized. Every transition calculated. Every interaction weaponized
-                for maximum user engagement.
+                Our objective: To design an automated process for sourcing missing product images for millions of SKUs, 
+                boosting sales and elevating the customer experience.
               </p>
               <p>
-                CURRENT STATUS // Deployed across thousands of production systems. Zero tolerance 
-                for bloat. Maximum efficiency. Industrial-strength reliability that keeps your 
-                applications running when it matters most.
+                Requirements: Robust web scraper to find and download potential matches. Machine Learning model to evaluate
+                image quality and relevance. Intuitive UI for Motion employees to review scraped images.
               </p>
             </div>
           </div>
@@ -132,18 +134,17 @@ export default function About() {
           }}></div>
           <div className="relative">
             <h2 className="text-4xl font-black text-black mb-4 uppercase tracking-wider">
-              Deploy With Us
+              Learn More
             </h2>
-            <p className="text-black/80 mb-8 max-w-2xl font-bold">
+            {/* <p className="text-black/80 mb-8 max-w-2xl font-bold">
               Join the engineers, builders, and creators who demand more from their tools.
-            </p>
+            </p> */}
             <div className="flex gap-4">
-              <button className="bg-black text-white px-8 py-4 font-black uppercase tracking-wider hover:bg-zinc-900 transition-colors border-2 border-black">
-                Initialize System
-              </button>
-              <button className="bg-transparent text-black px-8 py-4 font-black uppercase tracking-wider hover:bg-black/10 transition-colors border-2 border-black">
-                Access Docs
-              </button>
+              <a href='https://github.com/cbpricey/Motion-Industries/blob/main/MotionUI/motion-ui/README.md' target='_blank'>
+                <button className="bg-black text-white px-8 py-4 font-black uppercase tracking-wider hover:bg-zinc-900 transition-colors border-2 border-black">
+                  Access README
+                </button>
+              </a>
             </div>
           </div>
         </div>
