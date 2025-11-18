@@ -1,6 +1,7 @@
 "use client";
 
 import "./ReviewCard.css"; // reuse same styling for now
+import { getProxiedImageUrl } from "@/lib/imageProxy";
 
 interface ReviewHistoryCardProps {
   id: number;
@@ -21,7 +22,7 @@ export default function ReviewHistoryCard({
 }: ReviewHistoryCardProps) {
   return (
     <div className="review-card">
-      <img src={image_url} alt={title} className="review-image" />
+      <img src={getProxiedImageUrl(image_url)} alt={title} className="review-image" />
       <div className="review-details">
         <h3>{title}</h3>
         <p>{manufacturer}</p>

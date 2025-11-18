@@ -1,4 +1,5 @@
 import "./ReviewCard.css";
+import { getProxiedImageUrl } from "@/lib/imageProxy";
 
 type ReviewCardProps = {
     sku_number: string;
@@ -33,7 +34,7 @@ export default function ReviewCard({
         <section>
             <h1>ID: {id}</h1> {/* Display the id */}
             <h1>{sku}</h1>
-            <img src={image_url} alt={imageAlt || "Product Image"} />
+            <img src={getProxiedImageUrl(image_url)} alt={imageAlt || "Product Image"} />
             <p>{description}</p>
             <p>Confidence: {confidence_score}</p>
             <p>{isFeatured && '⭐'}</p>

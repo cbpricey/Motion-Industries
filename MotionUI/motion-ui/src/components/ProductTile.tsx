@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, XCircle } from "lucide-react";
+import { getProxiedImageUrl, getOriginalImageUrl } from "@/lib/imageProxy";
 
 /** Minimal fields the tile actually uses */
 export interface BaseItem {
@@ -28,11 +30,12 @@ function ProductTileInner<T extends BaseItem>({
   onReject,
 }: ProductTileProps<T>) {
   const router = useRouter();
+  const [imgSrc, setImgSrc] = useState(getProxiedImageUrl(item.image_url));
+  const [imgError, setImgError] = useState(false);
 
   const sku = item.sku_number ?? item.sku;
   const manufacturer = item.manufacturer ?? "";
   const confidence_score = item.confidence_score ?? 0;
-  const imageUrl = item.image_url ?? "";
 
   function goToImageProfile() {
     const back =
@@ -40,6 +43,18 @@ function ProductTileInner<T extends BaseItem>({
         ? window.location.pathname + window.location.search
         : "/sku-workbench";
     router.push(`/image-profile?id=${item.id}&back=${encodeURIComponent(back)}`);
+  }
+
+  function handleImageError() {
+    // If proxy failed, try original URL as fallback
+    if (!imgError) {
+      setImgError(true);
+      const originalUrl = getOriginalImageUrl(imgSrc);
+      if (originalUrl && originalUrl !== imgSrc) {
+        console.log('Proxy failed, falling back to original URL:', originalUrl);
+        setImgSrc(originalUrl);
+      }
+    }
   }
 
   const color = `hsl(${(confidence_score / 100) * 120}, 100%, 50%)`;
@@ -56,8 +71,9 @@ function ProductTileInner<T extends BaseItem>({
 
       {/* Image */}
       <img
-        src={imageUrl}
+        src={imgSrc}
         alt={item.title || "Product"}
+        onError={handleImageError}
         className="relative z-10 mb-3 aspect-[4/3] w-full rounded-lg border border-zinc-700 bg-zinc-800 object-cover"
       />
 
@@ -75,7 +91,7 @@ function ProductTileInner<T extends BaseItem>({
         <button
           onClick={(e) => {
             e.stopPropagation();
-            console.log("[Tile] Approve clicked", { sku, imageUrl });
+            console.log("[Tile] Approve clicked", { sku, imgSrc });
             onApprove(item);
           }}
           className="inline-flex items-center justify-center gap-2 rounded-lg border-2 border-green-700 bg-green-600 px-3 py-2 text-xs font-black uppercase tracking-wider text-white transition-colors hover:bg-green-700"
@@ -85,7 +101,7 @@ function ProductTileInner<T extends BaseItem>({
         <button
           onClick={(e) => {
             e.stopPropagation();
-            console.log("[Tile] Reject clicked", { sku, imageUrl });
+            console.log("[Tile] Reject clicked", { sku, imgSrc });
             onReject(item);
           }}
           className="inline-flex items-center justify-center gap-2 rounded-lg border-2 border-red-700 bg-red-600 px-3 py-2 text-xs font-black uppercase tracking-wider text-white transition-colors hover:bg-red-700"

@@ -13,6 +13,7 @@ import {
   Info,
   Clock,
 } from "lucide-react";
+import { getProxiedImageUrl } from "@/lib/imageProxy";
 
 interface ItemRecord {
   id?: string | number;
@@ -326,7 +327,7 @@ async function confirmReject() {
           <div className="md:col-span-2">
             <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950 p-3">
               <img
-                src={display.image_url}
+                src={getProxiedImageUrl(display.image_url)}
                 alt={String(display.title ?? "Image")}
                 className="max-h-[70vh] w-full rounded-lg object-contain"
               />
