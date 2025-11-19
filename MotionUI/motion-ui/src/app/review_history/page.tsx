@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Clock, CheckCircle2, XCircle, History, Filter } from "lucide-react";
 import { useSession } from "next-auth/react"; 
+import { useRouter } from "next/navigation";
 
 /**
  * Review History
@@ -39,6 +40,9 @@ export default function ReviewHistoryPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [scrollY, setScrollY] = useState(0);
+  const router = useRouter();
+  const isAdmin = session?.user?.role?.toUpperCase() === "ADMIN";
+
 
   const [reviewers, setReviewers] = useState<ReviewerOption[]>([]);
   const [selectedReviewer, setSelectedReviewer] = useState<string>("ALL"); // email or "ALL"
@@ -213,7 +217,7 @@ export default function ReviewHistoryPage() {
 
   const role = session?.user?.role?.toUpperCase();
   const userEmail = session?.user?.email ?? null;
-  const isAdmin = role === "ADMIN";
+  // const isAdmin = role === "ADMIN";
 
   // First: status filter (pending-approve / pending-reject / accepted / rejected)
   const statusFiltered =
@@ -349,53 +353,74 @@ export default function ReviewHistoryPage() {
             <p className="my-4 text-sm text-red-400">{error}</p>
           )}
 
-          {!loading && !error && visible.map((r) => (
-            <div
-              key={r.id}
-              className="flex items-center justify-between rounded-xl border-2 border-red-900/50 bg-zinc-950 p-4 hover:border-red-600 transition-all"
-            >
-              <div className="flex items-center gap-4 flex-1">
-                <img
-                  src={r.image_url}
-                  alt={r.title}
-                  className="h-20 w-20 rounded-lg border border-red-900/30 object-contain bg-zinc-900"
-                />
-                <div className="flex-1">
-                  <div className="text-lg font-black">{r.title}</div>
-                  <div className="text-sm text-gray-400">{r.manufacturer}</div>
-                  <div className="text-xs text-gray-500">
-                    Reviewed {r.created_at ? new Date(r.created_at).toLocaleString() : "—"}
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    Updated by {r.reviewed_by ?? "—"}
-                  </div>
-                  {/* Display rejection comment if it exists and status is rejected or pending-reject */}
-                  {(r.status === "rejected" || r.status === "pending-reject") && r.rejection_comment && (
-                    <div className="mt-2 rounded-md border border-red-900/40 bg-red-950/30 p-2">
-                      <div className="text-xs font-semibold text-red-400 mb-1">Rejection Reason:</div>
-                      <div className="text-xs text-gray-300">{r.rejection_comment}</div>
-                    </div>
-                  )}
-                </div>
-              </div>
+          {!loading && !error && visible.map((r) => {
+            const canOpenAdminTerminal =
+              isAdmin && (r.status === "pending-approve" || r.status === "pending-reject");
 
-              {/* Green for accepted/pending-approve, Red for rejected/pending-reject */}
+            return (
               <div
-                className={`inline-flex items-center gap-2 rounded-md px-3 py-1 font-mono text-sm border ${
-                  r.status === "accepted" || r.status === "pending-approve"
-                    ? "bg-green-600/20 text-green-400 border-green-700"
-                    : "bg-red-600/20 text-red-400 border-red-700"
+                key={r.id}
+                onClick={
+                  canOpenAdminTerminal
+                    ? () =>
+                        router.push(
+                          `/admin-review?id=${encodeURIComponent(
+                            String(r.id)
+                          )}&back=${encodeURIComponent("/review_history")}`
+                        )
+                    : undefined
+                }
+                className={`flex items-center justify-between rounded-xl border-2 border-red-900/50 bg-zinc-950 p-4 transition-all ${
+                  canOpenAdminTerminal ? "cursor-pointer hover:border-red-600" : ""
                 }`}
               >
-                {r.status === "accepted" || r.status === "pending-approve" ? (
-                  <CheckCircle2 className="h-4 w-4" />
-                ) : (
-                  <XCircle className="h-4 w-4" />
-                )}
-                {r.status.toUpperCase()}
+                <div className="flex items-center gap-4 flex-1">
+                  <img
+                    src={r.image_url}
+                    alt={r.title}
+                    className="h-20 w-20 rounded-lg border border-red-900/30 object-contain bg-zinc-900"
+                  />
+                  <div className="flex-1">
+                    <div className="text-lg font-black">{r.title}</div>
+                    <div className="text-sm text-gray-400">{r.manufacturer}</div>
+                    <div className="text-xs text-gray-500">
+                      Reviewed {r.created_at ? new Date(r.created_at).toLocaleString() : "—"}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      reviewed by {r.reviewed_by ?? "—"}
+                    </div>
+                    {(r.status === "rejected" || r.status === "pending-reject") &&
+                      r.rejection_comment && (
+                        <div className="mt-2 rounded-md border border-red-900/40 bg-red-950/30 p-2">
+                          <div className="text-xs font-semibold text-red-400 mb-1">
+                            Rejection Reason:
+                          </div>
+                          <div className="text-xs text-gray-300">
+                            {r.rejection_comment}
+                          </div>
+                        </div>
+                      )}
+                  </div>
+                </div>
+
+                <div
+                  className={`inline-flex items-center gap-2 rounded-md px-3 py-1 font-mono text-sm border ${
+                    r.status === "accepted" || r.status === "pending-approve"
+                      ? "bg-green-600/20 text-green-400 border-green-700"
+                      : "bg-red-600/20 text-red-400 border-red-700"
+                  }`}
+                >
+                  {r.status === "accepted" || r.status === "pending-approve" ? (
+                    <CheckCircle2 className="h-4 w-4" />
+                  ) : (
+                    <XCircle className="h-4 w-4" />
+                  )}
+                  {r.status.toUpperCase()}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
+
         </div>
       </div>
 
