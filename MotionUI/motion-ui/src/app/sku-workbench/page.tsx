@@ -651,7 +651,7 @@ export default function SkuWorkbench() {
           />
         </div>
 
-        {/* Pending Accept Section - Only show if there are items */}
+        {/* Pending Approve Section - Only show if there are items */}
         {pendingApproval.length > 0 && (
           <div className="mx-auto w-full max-w-6xl">
             <section className="w-full">

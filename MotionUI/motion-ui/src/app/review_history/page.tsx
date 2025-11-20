@@ -5,12 +5,12 @@ import { Clock, CheckCircle2, XCircle, History, Filter } from "lucide-react";
 
 /**
  * Review History
- * — Displays accepted/rejected reviews with matching industrial design
+ * — Displays approved/rejected reviews with matching industrial design
  * — Consistent with Home / Catalog Navigator / About
  */
 
 // keep existing types, just extend the filter options
-type FilterType = "all" | "pending-approve" | "accepted" | "pending-reject" | "rejected";
+type FilterType = "all" | "pending-approve" | "approved" | "pending-reject" | "rejected";
 
 interface ReviewHistoryItem {
   id: number | string;
@@ -18,7 +18,7 @@ interface ReviewHistoryItem {
   manufacturer: string;
   image_url: string;
   // include both pending_* states; exclude plain "pending" from history
-  status: "pending-approve" | "accepted" | "pending-reject" | "rejected";
+  status: "pending-approve" | "approved" | "pending-reject" | "rejected";
   created_at?: string;
   confidence_score: number;
   rejection_comment?: string;
@@ -46,9 +46,9 @@ export default function ReviewHistoryPage() {
         const qp = new URLSearchParams();
 
         // Map UI -> API:
-        // accepted => approved, rejected => rejected, pass-through the two pending_* states
+        // approved => approved, rejected => rejected, pass-through the two pending_* states
         const statusForApi =
-          filter === "accepted"
+          filter === "approved"
             ? "approved"
             : filter === "rejected"
             ? "rejected"
@@ -60,7 +60,7 @@ export default function ReviewHistoryPage() {
 
         if (statusForApi) qp.set("status", statusForApi);
 
-        qp.set("sort", "newest"); // Example: Sort by newest
+        qp.set("sort", "newest");
 
         const url = `/api/products?${qp.toString()}`;
         console.log("[ReviewHistoryPage] fetch:", url);
@@ -82,7 +82,7 @@ export default function ReviewHistoryPage() {
             image_url: (d.image_url ?? d.thumbnail_url ?? "") as string,
             status:
               d.status === "approved"
-                ? "accepted"
+                ? "approved"
                 : d.status === "rejected"
                 ? "rejected"
                 : (d.status as string), // keeps pending-approve / pending-reject
@@ -108,6 +108,8 @@ export default function ReviewHistoryPage() {
     setLoadingMore(true);
 
     const qp = new URLSearchParams();
+    qp.set("status", filter);
+    qp.set("sort", "newest");
     if (cursor) qp.set("cursor", JSON.stringify(cursor));
 
     const res = await fetch(`/api/products?${qp.toString()}`);
@@ -187,7 +189,7 @@ export default function ReviewHistoryPage() {
 
         {/* Filters (now includes pending_* buttons) */}
         <div className="mb-10 flex flex-wrap gap-3">
-          {(["pending-approve", "pending-reject", "accepted", "rejected"] as FilterType[]).map((f) => (
+          {(["pending-approve", "pending-reject", "approved", "rejected"] as FilterType[]).map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
@@ -244,15 +246,15 @@ export default function ReviewHistoryPage() {
                 </div>
               </div>
 
-              {/* Green for accepted/pending-approve, Red for rejected/pending-reject */}
+              {/* Green for approved/pending-approve, Red for rejected/pending-reject */}
               <div
                 className={`inline-flex items-center gap-2 rounded-md px-3 py-1 font-mono text-sm border ${
-                  r.status === "accepted" || r.status === "pending-approve"
+                  r.status === "approved" || r.status === "pending-approve"
                     ? "bg-green-600/20 text-green-400 border-green-700"
                     : "bg-red-600/20 text-red-400 border-red-700"
                 }`}
               >
-                {r.status === "accepted" || r.status === "pending-approve" ? (
+                {r.status === "approved" || r.status === "pending-approve" ? (
                   <CheckCircle2 className="h-4 w-4" />
                 ) : (
                   <XCircle className="h-4 w-4" />
