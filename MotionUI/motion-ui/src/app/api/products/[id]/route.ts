@@ -36,17 +36,22 @@ export async function GET(
 
     const src = (result._source ?? {}) as Record<string, unknown>;
 
-    const confidence = (src.confidence as number) ?? 0
-    const confidence_score = confidence * 100
+    const confidence = (src.confidence as number) ?? 0;
+    const confidence_score = confidence * 100;
 
     const product = {
       id: result._id,
       manufacturer: (src.manufacturer as string) ?? "Unknown",
       sku_number:
-        (src.sku_number as string) ?? (src.part_number as string) ?? (src.sku as string) ?? String(src.id ?? id),
+        (src.sku_number as string) ??
+        (src.part_number as string) ??
+        (src.sku as string) ??
+        String(src.id ?? id),
       title:
         (src.description as string) ??
-        `${(src.manufacturer as string) ?? ""} ${(src.sku_number as string) ?? ""}`.trim(),
+        `${(src.manufacturer as string) ?? ""} ${
+          (src.sku_number as string) ?? ""
+        }`.trim(),
       description: (src.description as string) ?? "",
       image_url: (src.image_url as string) ?? "",
       confidence_score: confidence_score,
@@ -117,6 +122,28 @@ export async function PATCH(
       doc_as_upsert: false,
     });
 
+    if (role === "ADMIN" && finalStatus === "approved") {
+      // 1. Fetch the updated document to get its SKU
+      const existing = await client.get({ index: INDEX, id });
+      const src = existing._source as any;
+      const sku = src?.sku_number;
+
+      if (!sku) {
+        console.warn(`[Admin Finalization] No SKU found for ${id}`);
+      } else {
+        // 2. Delete all OTHER docs with same SKU, except the one just approved
+        await client.deleteByQuery({
+          index: INDEX,
+          query: {
+            bool: {
+              must: [{ term: { sku_number: sku } }],
+              must_not: [{ term: { _id: id } }],
+            },
+          },
+        });
+      }
+    }
+
     try {
       const userIndex = session.user.id!; // Prisma user.id from session
       interface ReviewLog {
@@ -132,18 +159,17 @@ export async function PATCH(
         image_url?: string;
         confidence?: number | null;
       }
-      const logEntry : ReviewLog = {
+      const logEntry: ReviewLog = {
         review_id: crypto.randomUUID(),
         product_id: id,
-        action: status.toUpperCase(),     // requested action
-        final_status: finalStatus,        // actual stored status
+        action: status.toUpperCase(), // requested action
+        final_status: finalStatus, // actual stored status
         reviewer_id: userIndex,
         reviewer_email: email,
         reviewer_role: role,
         timestamp: new Date().toISOString(),
       };
 
-      
       try {
         const existing = await client.get({ index: INDEX, id });
         if (existing.found) {
@@ -161,7 +187,9 @@ export async function PATCH(
         document: logEntry,
       });
 
-      console.log(`[Review Log] Logged review for ${email} in index ${userIndex}`);
+      console.log(
+        `[Review Log] Logged review for ${email} in index ${userIndex}`
+      );
     } catch (logErr) {
       console.error("[Review Log] Failed to log review:", logErr);
     }

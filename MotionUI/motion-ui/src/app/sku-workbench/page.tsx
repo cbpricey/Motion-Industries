@@ -116,41 +116,41 @@ export default function SkuWorkbench() {
     [pending]
   );
 
+  async function fetchProducts() {
+    try {
+      const qp = new URLSearchParams();
+
+      // Primary filters from URL/state
+      if (manufacturer) qp.set("manufacturer", manufacturer);
+      if (selectedSku && selectedSku !== "All")
+        qp.set("sku_number", selectedSku);
+      if (skuPrefix) qp.set("sku_prefix", skuPrefix);
+      if (minConfidence) qp.set("min_confidence", minConfidence);
+
+      // Shared
+      if (statusFilter) qp.set("status", statusFilter);
+      if (sort) qp.set("sort", sort);
+      if (from) qp.set("from", from);
+      if (to) qp.set("to", to);
+
+      const url = `/api/products${qp.toString() ? `?${qp.toString()}` : ""}`;
+      console.log("[SKU Workbench] fetch:", url);
+      const res = await fetch(url, { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const resJson = await res.json();
+      const data = Array.isArray(resJson.results) ? resJson.results : [];
+      setCursor(resJson.nextCursor);
+      console.log("[SKU Workbench] results:", data.length);
+      setPending(data);
+    } catch (e) {
+      console.error("[SKU Workbench] Failed to fetch products:", e);
+      setPending([]);
+    }
+  }
+
   // Fetch with ALL filters - only when authenticated
   useEffect(() => {
     if (authStatus !== "authenticated") return;
-
-    async function fetchProducts() {
-      try {
-        const qp = new URLSearchParams();
-
-        // Primary filters from URL/state
-        if (manufacturer) qp.set("manufacturer", manufacturer);
-        if (selectedSku && selectedSku !== "All")
-          qp.set("sku_number", selectedSku);
-        if (skuPrefix) qp.set("sku_prefix", skuPrefix);
-        if (minConfidence) qp.set("min_confidence", minConfidence);
-
-        // Shared
-        if (statusFilter) qp.set("status", statusFilter);
-        if (sort) qp.set("sort", sort);
-        if (from) qp.set("from", from);
-        if (to) qp.set("to", to);
-
-        const url = `/api/products${qp.toString() ? `?${qp.toString()}` : ""}`;
-        console.log("[SKU Workbench] fetch:", url);
-        const res = await fetch(url, { cache: "no-store" });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const resJson = await res.json();
-        const data = Array.isArray(resJson.results) ? resJson.results : [];
-        setCursor(resJson.nextCursor);
-        console.log("[SKU Workbench] results:", data.length);
-        setPending(data);
-      } catch (e) {
-        console.error("[SKU Workbench] Failed to fetch products:", e);
-        setPending([]);
-      }
-    }
     fetchProducts();
   }, [
     authStatus,
@@ -164,55 +164,62 @@ export default function SkuWorkbench() {
     to,
   ]);
 
+  async function fetchPendingApproval() {
+    try {
+      const qp = new URLSearchParams();
+      qp.set("status", "pending-approve");
+
+      const url = `/api/products?${qp.toString()}`;
+      console.log("[SKU Workbench] fetch pending-approve:", url);
+      const res = await fetch(url, { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      const data = Array.isArray(json.results) ? json.results : [];
+      console.log("[SKU Workbench] pending-approve results:", data.length);
+      setPendingApproval(data);
+    } catch (e) {
+      console.error("[SKU Workbench] Failed to fetch pending-approve:", e);
+      setPendingApproval([]);
+    }
+  }
   // Fetch pending-approve items
   useEffect(() => {
     if (authStatus !== "authenticated") return;
-
-    async function fetchPendingApproval() {
-      try {
-        const qp = new URLSearchParams();
-        qp.set("status", "pending-approve");
-
-        const url = `/api/products?${qp.toString()}`;
-        console.log("[SKU Workbench] fetch pending-approve:", url);
-        const res = await fetch(url, { cache: "no-store" });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
-        const data = Array.isArray(json.results) ? json.results : [];
-        console.log("[SKU Workbench] pending-approve results:", data.length);
-        setPendingApproval(data);
-      } catch (e) {
-        console.error("[SKU Workbench] Failed to fetch pending-approve:", e);
-        setPendingApproval([]);
-      }
-    }
     fetchPendingApproval();
   }, [authStatus]);
+
+  async function fetchPendingRejection() {
+    try {
+      const qp = new URLSearchParams();
+      qp.set("status", "pending-reject");
+
+      const url = `/api/products?${qp.toString()}`;
+      console.log("[SKU Workbench] fetch pending-reject:", url);
+      const res = await fetch(url, { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      const data = Array.isArray(json.results) ? json.results : [];
+      console.log("[SKU Workbench] pending-reject results:", data.length);
+      setPendingRejection(data);
+    } catch (e) {
+      console.error("[SKU Workbench] Failed to fetch pending-reject:", e);
+      setPendingRejection([]);
+    }
+  }
 
   // Fetch pending-reject items
   useEffect(() => {
     if (authStatus !== "authenticated") return;
-
-    async function fetchPendingRejection() {
-      try {
-        const qp = new URLSearchParams();
-        qp.set("status", "pending-reject");
-
-        const url = `/api/products?${qp.toString()}`;
-        console.log("[SKU Workbench] fetch pending-reject:", url);
-        const res = await fetch(url, { cache: "no-store" });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
-        const data = Array.isArray(json.results) ? json.results : [];
-        console.log("[SKU Workbench] pending-reject results:", data.length);
-        setPendingRejection(data);
-      } catch (e) {
-        console.error("[SKU Workbench] Failed to fetch pending-reject:", e);
-        setPendingRejection([]);
-      }
-    }
     fetchPendingRejection();
   }, [authStatus]);
+
+  async function refetchAll() {
+    await Promise.all([
+      fetchProducts(),
+      fetchPendingApproval(),
+      fetchPendingRejection(),
+    ]);
+  }
 
   useEffect(() => {
     console.log("[SKU Workbench] mounted with params:", {
@@ -251,7 +258,7 @@ export default function SkuWorkbench() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "approved" }),
       });
-      router.refresh();
+      await refetchAll();
 
       if (!res.ok) {
         console.error("Failed to update status:", await res.text());
@@ -553,6 +560,7 @@ export default function SkuWorkbench() {
                 if (skuPrefix) qp.set("sku_prefix", skuPrefix);
                 if (minConfidence) qp.set("min_confidence", minConfidence);
                 if (statusFilter) qp.set("status", statusFilter);
+                qp.set("status", "pending");
                 if (sort) qp.set("sort", sort);
                 if (from) qp.set("from", from);
                 if (to) qp.set("to", to);
