@@ -16,30 +16,28 @@ import {
 import { getProxiedImageUrl } from "@/lib/imageProxy";
 
 interface AdminReviewRecord {
-  id?: string | number;
-  manufacturer?: string;
-  sku_number?: string;
-  sku?: string;
-  title?: string;
-  image_url: string;
-  status?: string;
-  confidence_score?: number;
-  rejection_comment?: string;
-  reviewed_by?: string;
-  updated_by?: string;
-  updated_at?: string;
-  created_at?: string;
-
-  // For proposal vs final diff (can be stored in ES)
-  original_status?: string;
-  final_status?: string;
-
-  // In case backend uses camelCase at some point
-  originalStatus?: string;
-  finalStatus?: string;
-
-  [key: string]: unknown;
-}
+    id?: string | number;
+    manufacturer?: string;
+    sku_number?: string;
+    sku?: string;
+    title?: string;
+    image_url: string;
+    status?: string;
+    confidence_score?: number;
+    rejection_comment?: string;
+  
+    reviewed_by?: string | null;
+    updated_by?: string | null;
+    updated_at?: string | null;
+    created_at?: string | null;
+  
+    original_status?: string | null;
+    final_status?: string | null;
+    originalStatus?: string | null;
+    finalStatus?: string | null;
+  
+    [key: string]: unknown;
+  }
 
 export default function AdminReviewTerminalPage() {
   const router = useRouter();
@@ -75,7 +73,7 @@ export default function AdminReviewTerminalPage() {
   // Fetch record + siblings
   useEffect(() => {
     if (!id) return;
-
+  
     async function fetchAll() {
       setLoading(true);
       setError(null);
@@ -83,10 +81,47 @@ export default function AdminReviewTerminalPage() {
         console.log("[AdminReview] fetch:", id);
         const res = await fetch(`/api/products/${id}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const rec = await res.json();
-        setRecord(rec ?? null);
-
-        const skuKey = rec?.sku_number ?? rec?.sku;
+        const raw = await res.json();
+        console.log("[AdminReview] raw record", raw);
+        setRecord(raw ?? null); 
+  
+        if (!raw || typeof raw !== "object") {
+          setRecord(null);
+          setSiblings([]);
+          setLoading(false);
+          return;
+        }
+  
+        const d = raw as Record<string, any>;
+  
+        const main: AdminReviewRecord = {
+          ...d,
+          id: (d.id ?? d._id) as string | number | undefined,
+          title: (d.title ?? d.product_title ?? "(Untitled)") as string,
+          manufacturer: (d.manufacturer ?? "") as string,
+          image_url: (d.image_url ?? d.thumbnail_url ?? "") as string,
+          status: d.status as string | undefined,
+          confidence_score: (d.confidence_score ?? 0) as number,
+          rejection_comment: (d.rejection_comment ?? "") as string,
+  
+          // 👇 same logic as ReviewHistoryItem
+          created_at: (d.reviewed_at ?? d.created_at ?? d.updated_at ?? null) as string | null,
+          reviewed_by: (d.reviewed_by ?? null) as string | null,
+  
+          // extra convenience for “last updated” etc.
+          updated_at: (d.updated_at ?? d.reviewed_at ?? d.created_at ?? null) as string | null,
+          updated_by: (d.updated_by ?? d.reviewed_by ?? null) as string | null,
+  
+          original_status:
+            ((d.original_status ?? d.originalStatus ?? d.status) as string | null) ?? null,
+          final_status:
+            ((d.final_status ?? d.finalStatus ?? d.status) as string | null) ?? null,
+        };
+  
+        setRecord(main);
+  
+        // Siblings (can be looser, you only use title/status/image_url/id)
+        const skuKey = d.sku_number ?? d.sku;
         if (skuKey) {
           const sibRes = await fetch(
             `/api/products?sku_number=${encodeURIComponent(skuKey)}`,
@@ -94,8 +129,16 @@ export default function AdminReviewTerminalPage() {
           );
           if (sibRes.ok) {
             const resJson = await sibRes.json();
-            const arr = (resJson.results ?? []) as AdminReviewRecord[];
-            setSiblings(arr.filter((r) => r.id !== rec.id));
+            const rows = Array.isArray(resJson) ? resJson : resJson.results ?? [];
+            const arr: AdminReviewRecord[] = rows.map((r: Record<string, any>) => ({
+              ...r,
+              id: (r.id ?? r._id) as string | number | undefined,
+              title: (r.title ?? r.product_title ?? "(Untitled)") as string,
+              manufacturer: (r.manufacturer ?? "") as string,
+              image_url: (r.image_url ?? r.thumbnail_url ?? "") as string,
+              status: r.status as string | undefined,
+            }));
+            setSiblings(arr.filter((r) => r.id !== main.id));
           } else {
             setSiblings([]);
           }
@@ -109,7 +152,7 @@ export default function AdminReviewTerminalPage() {
         setLoading(false);
       }
     }
-
+  
     fetchAll();
   }, [id]);
 
@@ -604,10 +647,10 @@ export default function AdminReviewTerminalPage() {
                   </div>
                 )}
 
-                {display.updated_at && (
+                {display.created_at && (
                   <div className="text-[11px] text-gray-500">
                     Last updated:{" "}
-                    {new Date(display.updated_at).toLocaleString()}
+                    {new Date(display.created_at).toLocaleString()}
                   </div>
                 )}
 

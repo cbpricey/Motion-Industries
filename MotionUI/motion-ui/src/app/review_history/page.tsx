@@ -84,6 +84,7 @@ export default function ReviewHistoryPage() {
         const response = await fetch(url, { cache: "no-store" });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const raw = await response.json();
+        console.log("[ReviewHistoryPage] response:", raw);
         const rows = Array.isArray(raw) ? raw : raw.results ?? [];
         setCursor(raw.nextCursor)
 
