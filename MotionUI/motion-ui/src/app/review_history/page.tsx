@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { Clock, CheckCircle2, XCircle, History, Filter } from "lucide-react";
+import { useSession } from "next-auth/react"; 
+import { useRouter } from "next/navigation";
 
 /**
  * Review History
@@ -20,16 +22,30 @@ interface ReviewHistoryItem {
   // include both pending_* states; exclude plain "pending" from history
   status: "pending-approve" | "approved" | "pending-reject" | "rejected";
   created_at?: string;
+  reviewed_by?: string;
   confidence_score: number;
   rejection_comment?: string;
 }
 
+interface ReviewerOption {
+  id: string;
+  name: string | null;
+  email: string;
+}
+
 export default function ReviewHistoryPage() {
+  const { data: session, status } = useSession(); 
   const [filter, setFilter] = useState<FilterType>("pending-approve");
   const [reviewHistory, setReviewHistory] = useState<ReviewHistoryItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [scrollY, setScrollY] = useState(0);
+  const router = useRouter();
+  const isAdmin = session?.user?.role?.toUpperCase() === "ADMIN";
+
+
+  const [reviewers, setReviewers] = useState<ReviewerOption[]>([]);
+  const [selectedReviewer, setSelectedReviewer] = useState<string>("ALL"); // email or "ALL"
 
   // search_after cursor
   const [cursor, setCursor] = useState(null);
@@ -68,6 +84,7 @@ export default function ReviewHistoryPage() {
         const response = await fetch(url, { cache: "no-store" });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const raw = await response.json();
+        console.log("[ReviewHistoryPage] response:", raw);
         const rows = Array.isArray(raw) ? raw : raw.results ?? [];
         setCursor(raw.nextCursor)
 
@@ -89,6 +106,7 @@ export default function ReviewHistoryPage() {
             created_at: (d.reviewed_at ?? d.created_at ?? d.updated_at ?? null) as string | null,
             confidence_score: (d.confidence_score ?? 0) as number,
             rejection_comment: (d.rejection_comment ?? "") as string,
+            reviewed_by: d.reviewed_by ?? null,
           }));
 
         setReviewHistory(arr);
@@ -104,21 +122,92 @@ export default function ReviewHistoryPage() {
     fetchReviewHistory();
   }, [filter]); // Re-run when the filter changes
 
+    // Load list of users for the admin dropdown
+  useEffect(() => {
+    const role = session?.user?.role?.toUpperCase();
+    if (role !== "ADMIN") return;
+
+    const fetchUsers = async () => {
+      try {
+        const res = await fetch("/api/users", { cache: "no-store" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        // data comes from your /api/users GET: { id, name, email, role, created_at }
+        const opts: ReviewerOption[] = data.map((u: any) => ({
+          id: u.id,
+          name: u.name,
+          email: u.email,
+        }));
+
+        setReviewers(opts);
+      } catch (e) {
+        console.error("[ReviewHistoryPage] Failed to load users:", e);
+      }
+    };
+
+    fetchUsers();
+  }, [session]);
+  
+
   async function loadMore() {
+    if (!cursor) return;
     setLoadingMore(true);
-
-    const qp = new URLSearchParams();
-    qp.set("status", filter);
-    qp.set("sort", "newest");
-    if (cursor) qp.set("cursor", JSON.stringify(cursor));
-
-    const res = await fetch(`/api/products?${qp.toString()}`);
-    const data = await res.json();
-
-    setReviewHistory(prev => [...prev, ...data.results]);
-    setCursor(data.nextCursor);
-    setLoadingMore(false);
+  
+    try {
+      const qp = new URLSearchParams();
+  
+      // same status mapping as in useEffect
+      const statusForApi =
+        filter === "accepted"
+          ? "approved"
+          : filter === "rejected"
+          ? "rejected"
+          : filter === "pending-approve"
+          ? "pending-approve"
+          : filter === "pending-reject"
+          ? "pending-reject"
+          : null;
+  
+      if (statusForApi) qp.set("status", statusForApi);
+      qp.set("sort", "newest");
+  
+      qp.set("cursor", JSON.stringify(cursor));
+  
+      const res = await fetch(`/api/products?${qp.toString()}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const rows = Array.isArray(data) ? data : data.results ?? [];
+  
+      const allowed = ["approved", "rejected", "pending-approve", "pending-reject"];
+      const more: ReviewHistoryItem[] = rows
+        .filter((d: Record<string, unknown>) => allowed.includes(d.status as string))
+        .map((d: Record<string, unknown>) => ({
+          id: (d.id ?? d._id ?? crypto.randomUUID()) as string,
+          title: (d.title ?? d.product_title ?? "(Untitled)") as string,
+          manufacturer: (d.manufacturer ?? "") as string,
+          image_url: (d.image_url ?? d.thumbnail_url ?? "") as string,
+          status:
+            d.status === "approved"
+              ? "accepted"
+              : d.status === "rejected"
+              ? "rejected"
+              : (d.status as string),
+          created_at: (d.reviewed_at ?? d.created_at ?? d.updated_at ?? null) as string | null,
+          confidence_score: (d.confidence_score ?? 0) as number,
+          rejection_comment: (d.rejection_comment ?? "") as string,
+        }));
+  
+      setReviewHistory((prev) => [...prev, ...more]);
+      setCursor(data.nextCursor);
+    } catch (err) {
+      console.error("[ReviewHistoryPage] Failed to load more:", err);
+      setError(err instanceof Error ? err.message : "An error occurred");
+    } finally {
+      setLoadingMore(false);
+    }
   }
+  
 
   // Background scroll parallax
   useEffect(() => {
@@ -127,9 +216,31 @@ export default function ReviewHistoryPage() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  // Local filter for current view
-  const filtered =
-    filter === "all" ? reviewHistory : reviewHistory.filter((r) => r.status === filter);
+  const role = session?.user?.role?.toUpperCase();
+  const userEmail = session?.user?.email ?? null;
+  // const isAdmin = role === "ADMIN";
+
+  // First: status filter (pending-approve / pending-reject / accepted / rejected)
+  const statusFiltered =
+    filter === "all"
+      ? reviewHistory
+      : reviewHistory.filter((r) => r.status === filter);
+
+  // Second: user filter
+  const visible = statusFiltered.filter((r) => {
+    // If we don't know who the user is yet, just show everything to avoid flashing empty
+    if (!userEmail) return true;
+
+    // Admin: filter by selectedReviewer dropdown
+    if (isAdmin) {
+      if (selectedReviewer === "ALL") return true;
+      return r.reviewed_by === selectedReviewer;
+    }
+
+    // Generic reviewer: only show their own reviews
+    return r.reviewed_by === userEmail;
+  });
+
 
   // Pretty label for buttons
   const pretty = (s: FilterType) =>
@@ -179,11 +290,35 @@ export default function ReviewHistoryPage() {
           <h1 className="mb-4 text-5xl font-black leading-none tracking-tighter md:text-6xl">
             Review <span className="text-red-600">History</span>
           </h1>
-          <div className="mb-6 flex items-center gap-4">
+          {/* if user is an admin show "displaying approvals and rejections for ___ user"
+          the ___ should be a drop down menu where the admin can select what user they want to show for 
+
+          if the user is an generic reviewer then it should only display what they have approved/rejected */}
+          <div className="mb-6 flex flex-wrap items-center gap-4">
             <div className="h-1 w-20 bg-red-600" />
-            <p className="font-mono text-sm uppercase tracking-widest text-gray-400">
-              Your past approvals and rejections
-            </p>
+            {isAdmin ? (
+              <div className="flex flex-wrap items-center gap-2 text-sm text-gray-400">
+                <span className="font-mono uppercase tracking-widest">
+                  Displaying approvals and rejections for
+                </span>
+                <select
+                  value={selectedReviewer}
+                  onChange={(e) => setSelectedReviewer(e.target.value)}
+                  className="rounded-md border border-red-900 bg-zinc-950 px-3 py-1 text-xs font-mono uppercase tracking-widest text-gray-100 focus:outline-none focus:ring-2 focus:ring-red-600"
+                >
+                  <option value="ALL">All reviewers</option>
+                  {reviewers.map((u) => (
+                    <option key={u.id} value={u.email}>
+                      {u.name || u.email}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <p className="font-mono text-sm uppercase tracking-widest text-gray-400">
+                Your past approvals and rejections
+              </p>
+            )}
           </div>
         </div>
 
@@ -219,32 +354,55 @@ export default function ReviewHistoryPage() {
             <p className="my-4 text-sm text-red-400">{error}</p>
           )}
 
-          {!loading && !error && filtered.map((r) => (
-            <div
-              key={r.id}
-              className="flex items-center justify-between rounded-xl border-2 border-red-900/50 bg-zinc-950 p-4 hover:border-red-600 transition-all"
-            >
-              <div className="flex items-center gap-4 flex-1">
-                <img
-                  src={r.image_url}
-                  alt={r.title}
-                  className="h-20 w-20 rounded-lg border border-red-900/30 object-contain bg-zinc-900"
-                />
-                <div className="flex-1">
-                  <div className="text-lg font-black">{r.title}</div>
-                  <div className="text-sm text-gray-400">{r.manufacturer}</div>
-                  <div className="text-xs text-gray-500">
-                    Reviewed {r.created_at ? new Date(r.created_at).toLocaleString() : "—"}
-                  </div>
-                  {/* Display rejection comment if it exists and status is rejected or pending-reject */}
-                  {(r.status === "rejected" || r.status === "pending-reject") && r.rejection_comment && (
-                    <div className="mt-2 rounded-md border border-red-900/40 bg-red-950/30 p-2">
-                      <div className="text-xs font-semibold text-red-400 mb-1">Rejection Reason:</div>
-                      <div className="text-xs text-gray-300">{r.rejection_comment}</div>
+          {!loading && !error && visible.map((r) => {
+            const canOpenAdminTerminal =
+              isAdmin && (r.status === "pending-approve" || r.status === "pending-reject");
+
+            return (
+              <div
+                key={r.id}
+                onClick={
+                  canOpenAdminTerminal
+                    ? () =>
+                        router.push(
+                          `/admin-review?id=${encodeURIComponent(
+                            String(r.id)
+                          )}&back=${encodeURIComponent("/review_history")}`
+                        )
+                    : undefined
+                }
+                className={`flex items-center justify-between rounded-xl border-2 border-red-900/50 bg-zinc-950 p-4 transition-all ${
+                  canOpenAdminTerminal ? "cursor-pointer hover:border-red-600" : ""
+                }`}
+              >
+                <div className="flex items-center gap-4 flex-1">
+                  <img
+                    src={r.image_url}
+                    alt={r.title}
+                    className="h-20 w-20 rounded-lg border border-red-900/30 object-contain bg-zinc-900"
+                  />
+                  <div className="flex-1">
+                    <div className="text-lg font-black">{r.title}</div>
+                    <div className="text-sm text-gray-400">{r.manufacturer}</div>
+                    <div className="text-xs text-gray-500">
+                      Reviewed {r.created_at ? new Date(r.created_at).toLocaleString() : "—"}
                     </div>
-                  )}
+                    <div className="text-xs text-gray-500">
+                      reviewed by {r.reviewed_by ?? "—"}
+                    </div>
+                    {(r.status === "rejected" || r.status === "pending-reject") &&
+                      r.rejection_comment && (
+                        <div className="mt-2 rounded-md border border-red-900/40 bg-red-950/30 p-2">
+                          <div className="text-xs font-semibold text-red-400 mb-1">
+                            Rejection Reason:
+                          </div>
+                          <div className="text-xs text-gray-300">
+                            {r.rejection_comment}
+                          </div>
+                        </div>
+                      )}
+                  </div>
                 </div>
-              </div>
 
               {/* Green for approved/pending-approve, Red for rejected/pending-reject */}
               <div

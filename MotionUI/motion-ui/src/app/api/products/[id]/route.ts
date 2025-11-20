@@ -89,7 +89,7 @@ export async function PATCH(
   const role = session.user.role?.toUpperCase();
   const email = session.user.email ?? "unknown";
 
-  const { status } = await req.json();
+  const { status, rejection_comment } = await req.json();
   if (!status)
     return NextResponse.json({ error: "Status is required" }, { status: 400 });
 
@@ -118,6 +118,9 @@ export async function PATCH(
         status: finalStatus,
         updated_by: email,
         updated_at: new Date().toISOString(),
+        ...(rejection_comment !== undefined
+          ? { rejection_comment }
+          : {}),
       },
       doc_as_upsert: false,
     });
@@ -168,6 +171,11 @@ export async function PATCH(
         reviewer_email: email,
         reviewer_role: role,
         timestamp: new Date().toISOString(),
+        manufacturer: undefined,
+        image_url: undefined,
+        confidence: undefined,
+        // NEW:
+        // rejection_comment,   // <- add to interface + log if you want
       };
 
       try {

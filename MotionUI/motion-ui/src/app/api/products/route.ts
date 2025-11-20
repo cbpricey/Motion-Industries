@@ -1,5 +1,7 @@
 import { NextResponse, NextRequest } from "next/server";
 import { Client } from "@elastic/elasticsearch";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "../auth/[...nextauth]/route";
 
 export const runtime = "nodejs"; // ES client needs Node, not Edge
 
@@ -14,6 +16,7 @@ interface ProductDoc {
   status: string;
   created_at?: string;
   rejection_comment?: string;
+  reviewed_by?: string; 
 }
 
 const client = new Client({
@@ -153,13 +156,20 @@ export async function GET(req: NextRequest) {
         id: (src.id ?? hit._id ?? `unknown-${Date.now()}`) as string | number,
         manufacturer: (src.manufacturer as string) ?? "Unknown",
         sku_number: normalizedSku,
-        title: (src.title as string) ?? (src.description as string) ?? `${(src.manufacturer as string) ?? ""} ${normalizedSku}`.trim(),
+        title:
+          (src.title as string) ??
+          (src.description as string) ??
+          `${(src.manufacturer as string) ?? ""} ${normalizedSku}`.trim(),
         description: (src.description as string) ?? "",
         image_url: (src.image_url as string) ?? "",
-        created_at: undefined,
-        confidence_score: confidence_score,
+        created_at:
+          (src.updated_at as string) ??
+          (src.timestamp as string) ??
+          undefined,
+        confidence_score,
         status: (src.status as string) ?? "pending",
         rejection_comment: (src.rejection_comment as string) ?? "",
+        reviewed_by: (src.updated_by as string) ?? undefined,
       };
     });
 
@@ -182,7 +192,15 @@ export async function GET(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
-    const { id, status } = await req.json();
+    const session = await getServerSession(authOptions);
+
+    if (!session || !session.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const email = session.user.email ?? "unknown";
+
+    const { id, status, rejection_comment } = await req.json();
 
     if (!id || !status) {
       return NextResponse.json(
@@ -194,8 +212,15 @@ export async function PATCH(req: NextRequest) {
     const result = await client.update({
       index: "image_metadata",
       id,
-      doc: { status },
-      doc_as_upsert: false, // only update existing docs
+      doc: {
+        status,
+        updated_by: email,
+        updated_at: new Date().toISOString(),
+        ...(rejection_comment !== undefined
+          ? { rejection_comment }
+          : {}),
+      },
+      doc_as_upsert: false,
     });
 
     return NextResponse.json({ success: true, result });
@@ -207,3 +232,4 @@ export async function PATCH(req: NextRequest) {
     );
   }
 }
+
