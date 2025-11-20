@@ -54,9 +54,14 @@ export async function GET(
         }`.trim(),
       description: (src.description as string) ?? "",
       image_url: (src.image_url as string) ?? "",
+      created_at:
+        (src.updated_at as string) ??
+        (src.timestamp as string) ??
+        undefined,
       confidence_score: confidence_score,
       status: (src.status as string) ?? "pending",
       rejection_comment: (src.rejection_comment as string) ?? "",
+      reviewed_by: (src.updated_by as string) ?? undefined,
     };
 
     return NextResponse.json(product);
