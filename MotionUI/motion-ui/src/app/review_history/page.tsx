@@ -76,7 +76,7 @@ export default function ReviewHistoryPage() {
 
         if (statusForApi) qp.set("status", statusForApi);
 
-        qp.set("sort", "newest");
+        qp.set("sort", "newest"); // Example: Sort by newest
 
         const url = `/api/products?${qp.toString()}`;
         console.log("[ReviewHistoryPage] fetch:", url);
@@ -84,7 +84,6 @@ export default function ReviewHistoryPage() {
         const response = await fetch(url, { cache: "no-store" });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const raw = await response.json();
-        console.log("[ReviewHistoryPage] response:", raw);
         const rows = Array.isArray(raw) ? raw : raw.results ?? [];
         setCursor(raw.nextCursor)
 
@@ -159,7 +158,7 @@ export default function ReviewHistoryPage() {
   
       // same status mapping as in useEffect
       const statusForApi =
-        filter === "accepted"
+        filter === "approved"
           ? "approved"
           : filter === "rejected"
           ? "rejected"
@@ -189,7 +188,7 @@ export default function ReviewHistoryPage() {
           image_url: (d.image_url ?? d.thumbnail_url ?? "") as string,
           status:
             d.status === "approved"
-              ? "accepted"
+              ? "approved"
               : d.status === "rejected"
               ? "rejected"
               : (d.status as string),
@@ -220,7 +219,7 @@ export default function ReviewHistoryPage() {
   const userEmail = session?.user?.email ?? null;
   // const isAdmin = role === "ADMIN";
 
-  // First: status filter (pending-approve / pending-reject / accepted / rejected)
+  // First: status filter (pending-approve / pending-reject / approved / rejected)
   const statusFiltered =
     filter === "all"
       ? reviewHistory
@@ -404,23 +403,24 @@ export default function ReviewHistoryPage() {
                   </div>
                 </div>
 
-              {/* Green for approved/pending-approve, Red for rejected/pending-reject */}
-              <div
-                className={`inline-flex items-center gap-2 rounded-md px-3 py-1 font-mono text-sm border ${
-                  r.status === "approved" || r.status === "pending-approve"
-                    ? "bg-green-600/20 text-green-400 border-green-700"
-                    : "bg-red-600/20 text-red-400 border-red-700"
-                }`}
-              >
-                {r.status === "approved" || r.status === "pending-approve" ? (
-                  <CheckCircle2 className="h-4 w-4" />
-                ) : (
-                  <XCircle className="h-4 w-4" />
-                )}
-                {r.status.toUpperCase()}
+                <div
+                  className={`inline-flex items-center gap-2 rounded-md px-3 py-1 font-mono text-sm border ${
+                    r.status === "approved" || r.status === "pending-approve"
+                      ? "bg-green-600/20 text-green-400 border-green-700"
+                      : "bg-red-600/20 text-red-400 border-red-700"
+                  }`}
+                >
+                  {r.status === "approved" || r.status === "pending-approve" ? (
+                    <CheckCircle2 className="h-4 w-4" />
+                  ) : (
+                    <XCircle className="h-4 w-4" />
+                  )}
+                  {r.status.toUpperCase()}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
+
         </div>
       </div>
 
