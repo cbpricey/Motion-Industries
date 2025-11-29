@@ -19,15 +19,15 @@ Copy these variables into `.env.local`:
 
 ```bash
 # GitHub OAuth app
-GITHUB_ID=Ov23lip8cTsGe8Roy5ke
-GITHUB_SECRET=c085f527b8648c83a92f713273d423fe3b24b6dc
+GITHUB_ID=...
+GITHUB_SECRET=...
 
 # Google OAuth Client
-GOOGLE_CLIENT_ID=1072253817961-po1sijms5ijbk41ukeglup26ckh5tt22.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=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
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
 
 # NextAuth Secret
-NEXTAUTH_SECRET=fr4Rh7wIyK4uD5dvsuuYgC5ZnhcjMb5zVZAnPGpWTjg
+NEXTAUTH_SECRET=...
 
 # Local App
 NEXTAUTH_URL=http://localhost:3000
