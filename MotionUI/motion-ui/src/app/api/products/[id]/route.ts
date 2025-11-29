@@ -54,9 +54,14 @@ export async function GET(
         }`.trim(),
       description: (src.description as string) ?? "",
       image_url: (src.image_url as string) ?? "",
+      created_at:
+        (src.updated_at as string) ??
+        (src.timestamp as string) ??
+        undefined,
       confidence_score: confidence_score,
       status: (src.status as string) ?? "pending",
       rejection_comment: (src.rejection_comment as string) ?? "",
+      reviewed_by: (src.updated_by as string) ?? undefined,
     };
 
     return NextResponse.json(product);
@@ -89,7 +94,7 @@ export async function PATCH(
   const role = session.user.role?.toUpperCase();
   const email = session.user.email ?? "unknown";
 
-  const { status } = await req.json();
+  const { status, rejection_comment } = await req.json();
   if (!status)
     return NextResponse.json({ error: "Status is required" }, { status: 400 });
 
@@ -118,6 +123,9 @@ export async function PATCH(
         status: finalStatus,
         updated_by: email,
         updated_at: new Date().toISOString(),
+        ...(rejection_comment !== undefined
+          ? { rejection_comment }
+          : {}),
       },
       doc_as_upsert: false,
     });
@@ -168,6 +176,11 @@ export async function PATCH(
         reviewer_email: email,
         reviewer_role: role,
         timestamp: new Date().toISOString(),
+        manufacturer: undefined,
+        image_url: undefined,
+        confidence: undefined,
+        // NEW:
+        // rejection_comment,   // <- add to interface + log if you want
       };
 
       try {
