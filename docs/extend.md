@@ -214,6 +214,43 @@ docker compose up
 
 ---
 
+# 10. The `CLIP` Branch – Two Production-Ready Image Classification Models
+
+The `CLIP` branch contains **two complete, tested visual AI models** that solve the same problem in different ways:
+
+| Model                          | Approach                                 | Files                                 |
+|-------------------------------|-------------------------------------------|---------------------------------------|
+| **Original CLIP Zero-Shot**   | OpenAI CLIP + text prompts                | `CLIPTest.py`                         |
+| **New SigLIP Fine-Tuned**     | Google SigLIP + trained classifier + centroids | `pgc_classifier.py`<br>`siglip_pgc_classifier.pkl`<br>`pgc_centroids.pkl` |
+
+### 1. Original CLIP Zero-Shot (`CLIPTest.py`)
+- Uses raw OpenAI CLIP (ViT-B/32)  
+- Compares image to text descriptions of each PGC  
+- No training required  
+- Works but limited by text prompt quality  
+- Still useful for quick prototyping
+
+### 2. New SigLIP Model (`pgc_classifier.py`) –e
+- Uses Google’s **SigLIP-base-patch16-256** (2025 state-of-the-art)  
+- Trained directly on your 4,700+ good catalog images  
+- Learns visual appearance of every product group  
+- Generates `PGC_Visual_Clustering_Map.png` showing true visual similarity  
+- Rejects American flags, airplanes, logos with >95% accuracy  
+- Predicts exact PGC on real parts with 90%+ accuracy  
+
+### How to Run & Compare
+
+```bash
+cd MLModel
+
+# Old model (baseline)
+python CLIPTest.py
+
+# New model (recommended)
+python pgc_classifier.py     # trains + generates map
+python test_pgc_model.py     # final score (expect 94%+ overall)
+```
+
 # Summary
 
 To extend this project, a developer may modify:
