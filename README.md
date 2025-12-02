@@ -8,6 +8,11 @@ https://motion-ui-dev.vercel.app/
 
 ## How to run website locally 
 
+### Prerequisites
+
+- Node.js
+
+Use command "npm run dev" 
 
 ## How to Install Software for Image Scraper locally
 
