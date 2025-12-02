@@ -103,7 +103,7 @@ export default function AdminReviewTerminalPage() {
           confidence_score: (d.confidence_score ?? 0) as number,
           rejection_comment: (d.rejection_comment ?? "") as string,
   
-          // 👇 same logic as ReviewHistoryItem
+          // same logic as ReviewHistoryItem
           created_at: (d.reviewed_at ?? d.created_at ?? d.updated_at ?? null) as string | null,
           reviewed_by: (d.reviewed_by ?? null) as string | null,
   
