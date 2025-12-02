@@ -1,4 +1,4 @@
-# MotionProducts
+# Motion Products
 
 This application automates the process of searching and downloading product images for Motion.com products which do not have images using Google and Bing. It reads product information from an Excel file and downloads relevant images automatically. There is also a machine learning model using XG Boost to rate images on the website. 
 
@@ -24,13 +24,28 @@ https://motion-ui-dev.vercel.app/
 3. [Run Image Scraper](https://github.com/cbpricey/Motion-Industries?tab=readme-ov-file#how-to-install-software-for-image-scraper-locally)
 4. Go to localhost link 
 
-### How to use each feature 
+### How to Use Each Completed Feature 
 
-- Go to Catalog Navigator to look and accept/reject images
-- Can sort by confidence, manufacture, SKU, etc.
-- Review History allows users to see who approved/ rejected what image
-- User Index allows admin to change access for users 
-- [To have admin privileges, seed your admin account](https://github.com/cbpricey/Motion-Industries?tab=readme-ov-file#-authentication-setup)
+- **Catalog Navigator** - View and manage image approvals
+  - Can sort by confidence, manufacture, SKU, etc.
+  - Admin's and Reviewer's can review and approve/ reject images 
+- **OAUTH Role Based Acess** - Permissions depending on user
+  - **No Access**
+      - Can only access Home and About page 
+  - **Reviewer Access**
+    - Access allows pending approved/pending rejection queues
+    - Cannot access User Index
+  - **Admin Access**
+    - Direct access to approved and rejected images
+    - Can approve and reject images from pending queue
+    - Can access and update User Index
+- **Review History** - View user history
+    - Users can see each user associated approval/ rejections
+    - Users can see comments associated with each rejection if there is one associated 
+- **User Index** - View and manage users
+    - Can delete users
+    - Can update priviledges of users
+    - [To have admin privileges, seed your admin account](https://github.com/cbpricey/Motion-Industries?tab=readme-ov-file#-authentication-setup)
 
 ## How to Install Software for Image Scraper locally
 
