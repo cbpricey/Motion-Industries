@@ -218,10 +218,10 @@ docker compose up
 
 The `CLIP` branch contains **two complete, tested visual AI models** that solve the same problem in different ways:
 
-| Model                          | Approach                                 | Current Performance                              | Status                     | Files                                 |
-|-------------------------------|-------------------------------------------|--------------------------------------------------|----------------------------|---------------------------------------|
-| **Original CLIP Zero-Shot**   | OpenAI CLIP + text prompts                | ~30–40% PGC accuracy<br>~70% bad image rejection | Legacy / baseline          | `CLIPTest.py`                         |
-| **New SigLIP Fine-Tuned**     | Google SigLIP + trained classifier + centroids | 88–94% top-1 PGC accuracy<br>95–99% bad image rejection | Production-ready           | `pgc_classifier.py`<br>`siglip_pgc_classifier.pkl`<br>`pgc_centroids.pkl` |
+| Model                          | Approach                                 | Files                                 |
+|-------------------------------|-------------------------------------------|---------------------------------------|
+| **Original CLIP Zero-Shot**   | OpenAI CLIP + text prompts                | `CLIPTest.py`                         |
+| **New SigLIP Fine-Tuned**     | Google SigLIP + trained classifier + centroids | `pgc_classifier.py`<br>`siglip_pgc_classifier.pkl`<br>`pgc_centroids.pkl` |
 
 ### 1. Original CLIP Zero-Shot (`CLIPTest.py`)
 - Uses raw OpenAI CLIP (ViT-B/32)  
@@ -230,7 +230,7 @@ The `CLIP` branch contains **two complete, tested visual AI models** that solve 
 - Works but limited by text prompt quality  
 - Still useful for quick prototyping
 
-### 2. New SigLIP Model (`pgc_classifier.py`) – The Future
+### 2. New SigLIP Model (`pgc_classifier.py`) –e
 - Uses Google’s **SigLIP-base-patch16-256** (2025 state-of-the-art)  
 - Trained directly on your 4,700+ good catalog images  
 - Learns visual appearance of every product group  
