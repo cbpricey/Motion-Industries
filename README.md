@@ -28,7 +28,9 @@ https://motion-ui-dev.vercel.app/
 
 - Go to Catalog Navigator to look and accept/reject images
 - Can sort by confidence, manufacture, SKU, etc.
-- To have admin privileges, seed the admin through seed-admin.mjs
+- Review History allows users to see who approved/ rejected what image
+- User Index allows admin to change access for users 
+- [To have admin privileges, seed your admin account](https://github.com/cbpricey/Motion-Industries?tab=readme-ov-file#-authentication-setup)
 
 ## How to Install Software for Image Scraper locally
 
