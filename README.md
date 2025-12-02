@@ -21,7 +21,7 @@ https://motion-ui-dev.vercel.app/
 2. Run docker-compose.yml
     - For local image storage
   
-3. [Run Image Scraper](https://github.com/cbpricey/Motion-Industries/edit/main/README.md#how-to-install-software-for-image-scraper-locally)
+3. [Run Image Scraper](https://github.com/cbpricey/Motion-Industries?tab=readme-ov-file#how-to-install-software-for-image-scraper-locally)
 4. Go to localhost link 
 
 ### How to use each feature 
