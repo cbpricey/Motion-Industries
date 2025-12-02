@@ -16,13 +16,15 @@ https://motion-ui-dev.vercel.app/
 - Vercel (Free Tier for Deployment)
 
 ### Steps 
-1. Use command "npm run dev"
+1. Navigate to Motion-Industries/MotionUI/motion-ui
+    - Website directory 
+3. Use command "npm run dev"
     - For local website deployment 
-2. Run docker-compose.yml
+4. Run docker-compose.yml
     - For local image storage
   
-3. [Run Image Scraper](https://github.com/cbpricey/Motion-Industries?tab=readme-ov-file#how-to-install-software-for-image-scraper-locally)
-4. Go to localhost link 
+5. [Run Image Scraper](https://github.com/cbpricey/Motion-Industries?tab=readme-ov-file#how-to-install-software-for-image-scraper-locally)
+6. Go to localhost link 
 
 ### How to Use Each Completed Feature 
 

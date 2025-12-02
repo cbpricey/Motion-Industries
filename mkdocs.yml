@@ -1,0 +1,17 @@
+site_name: Motion Industries AI Image Matcher
+theme:
+  name: material
+  features:
+    - navigation.top
+    - navigation.sections
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+
+nav:
+  - Home: index.md
+  - Installation: install.md
+  - Features: features.md
+  - Modify & Extend: extend.md
+  - Demo Video: video.md
+  - FAQ: faq.md
