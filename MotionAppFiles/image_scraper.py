@@ -40,7 +40,7 @@ import joblib
 
 #for local deployment only change the username and password
 # es = Elasticsearch(
-#     "https://testing-a5af5f.es.us-central1.gcp.cloud.es.io/",
+#     "http://localhost:9200/",
 #     basic_auth=("username", "password"),
 #     verify_certs=True  # Disable certificate verification for local testing
 # )
