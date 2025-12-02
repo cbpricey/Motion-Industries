@@ -116,7 +116,7 @@ export default function SkuWorkbench() {
     [pending]
   );
 
-  async function fetchProducts() {
+  async function fetchPending() {
     try {
       const qp = new URLSearchParams();
 
@@ -128,7 +128,7 @@ export default function SkuWorkbench() {
       if (minConfidence) qp.set("min_confidence", minConfidence);
 
       // Shared
-      if (statusFilter) qp.set("status", statusFilter);
+      qp.set("status", "pending");
       if (sort) qp.set("sort", sort);
       if (from) qp.set("from", from);
       if (to) qp.set("to", to);
@@ -151,14 +151,13 @@ export default function SkuWorkbench() {
   // Fetch with ALL filters - only when authenticated
   useEffect(() => {
     if (authStatus !== "authenticated") return;
-    fetchProducts();
+    fetchPending();
   }, [
     authStatus,
     manufacturer,
     selectedSku,
     skuPrefix,
     minConfidence,
-    statusFilter,
     sort,
     from,
     to,
@@ -215,7 +214,7 @@ export default function SkuWorkbench() {
 
   async function refetchAll() {
     await Promise.all([
-      fetchProducts(),
+      fetchPending(),
       fetchPendingApproval(),
       fetchPendingRejection(),
     ]);
@@ -642,17 +641,8 @@ export default function SkuWorkbench() {
 
       {/* Grid */}
       <div className="relative px-6 pb-24 space-y-12">
-        <div className="mx-auto w-full max-w-6xl">
-          <PendingGrid
-            items={bySku}
-            onApprove={handleApprove}
-            onReject={handleReject}
-            title="Pending Review"
-          />
-        </div>
-
-        {/* Pending Approve Section - Only show if there are items */}
-        {pendingApproval.length > 0 && (
+        {/* Pending Approve Section - Only show if there are items & user is admin*/}
+        {pendingApproval.length > 0 && isAdmin && (
           <div className="mx-auto w-full max-w-6xl">
             <section className="w-full">
               <div className="mb-6 flex items-center gap-4">
@@ -682,7 +672,7 @@ export default function SkuWorkbench() {
         )}
 
         {/* Pending Rejected Section - Only show if there are items */}
-        {pendingRejection.length > 0 && (
+        {pendingRejection.length > 0 && isAdmin && (
           <div className="mx-auto w-full max-w-6xl">
             <section className="w-full">
               <div className="mb-6 flex items-center gap-4">
@@ -710,6 +700,15 @@ export default function SkuWorkbench() {
             </section>
           </div>
         )}
+
+        <div className="mx-auto w-full max-w-6xl">
+          <PendingGrid
+            items={bySku}
+            onApprove={handleApprove}
+            onReject={handleReject}
+            title="Pending Review"
+          />
+        </div>
       </div>
 
       <div className="flex justify-center py-6">

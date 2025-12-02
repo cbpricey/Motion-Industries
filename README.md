@@ -1,17 +1,19 @@
 # MotionProducts
 
-This application automates the process of searching and downloading product images for Motion.com products which do not have images using Google and Bing. It reads product information from an Excel file and downloads relevant images automatically.
+This application automates the process of searching and downloading product images for Motion.com products which do not have images using Google and Bing. It reads product information from an Excel file and downloads relevant images automatically. There is also a machine learning model using XG Boost to rate images on the website. 
 
 ### Project Website
 
-https://lilbob0506.github.io/MotionProducts/
+https://motion-ui-dev.vercel.app/
 
-## How to Install Software
+## How to run website locally 
+
+
+## How to Install Software for Image Scraper locally
 
 ### Prerequisites
 
 - Python 3.12+
-- Docker (optional)
 - Git
 
 ### Required Python Packages
@@ -20,17 +22,6 @@ Install the necessary dependencies using:
 ```sh
 pip install -r requirements.txt
 ```
-### Deployment with Docker
-
-```sh
-git clone https://github.com/LilBob0506/MotionProducts
-cd MotionAppFiles
-
-docker build -t image_scraper .
-docker run -p 8000:8000 image_scraper
-```
-
-### Deployment without Docker
 
 ```sh
 git clone https://github.com/LilBob0506/MotionProducts
@@ -139,7 +130,8 @@ When user hits run:
 | Image Processing | PIL (Pillow) |
 | Web scraping | Requests + BeautifulSoup |
 | External Resources | Google & Bing image search (scraped, no API) |
-|Optional Virtualization | Docker |
+|Machine Learning | XG Boost |
+| Cloud Storage | Elastic Search|
 
 ### Dependencies
 
@@ -162,8 +154,8 @@ Test with `List.xlsx` to load manufacturer names, part numbers, and descriptions
 - `MotionProducts/MotionAppFiles/Context URLs.xlsx`
 
 ### Issues
-- Moving image storage to cloud (e.g. Google Cloud)
-- Image quality and accuracy 
+- Image accuracy
+- ML model confidence scores
 
 ### Coding Style
 
@@ -175,7 +167,8 @@ Test with `List.xlsx` to load manufacturer names, part numbers, and descriptions
 
 ### How to extend Features
 
-- Store images in the cloud
+- Get machine model to be on a feedback loop
+- Use user comments to help the model train 
 
 ## 🔐 Authentication Setup
 See [NEXTAUTH_SETUP.md](./docs/NEXTAUTH_SETUP.md) for how to configure GitHub/Google OAuth and seed your admin account.
@@ -204,13 +197,11 @@ Downloaded images are stored in a folder structure under the output directory yo
 ```
 Or if you're running the executable, check the folder where the executable is located.
 
-### 3. Why do some of the images have poor quality?
+### 3. Why are some of the images inaccurate with inaccurate confidence scores?
 
 There are a few reasons for this:
 
-- Low-resolution thumbnails	- Google and Bing may return small thumbnail versions of images, especially when scraping without clicking into full-size previews.
-- No high-quality sources available - If a product is obscure or has limited web presence, image options may be poor across the board.
-- Search query ambiguity - If the part number or description is too generic, irrelevant or low-quality images may be returned.
-- Manufacturer site not used - If no matching context URL is found, the scraper defaults to a generic search, which may yield mixed results.
+- The ML model is based off criteria of the image. This includes whitespace, resolution, etc.
+- The scraper returns images based off key descriptions, these descriptions can lead to misleading searches. 
 
 For the best results ensure you provide a context Excel file with accurate manufacturer URLs.

@@ -142,7 +142,7 @@ export default function SelectNavigatorPage() {
 
   /* -------------------------------------------- */
 
-  // Derived hint (optional; kept from your earlier version)
+  // Derived hint
   const hint = useMemo(() => {
     switch (mode) {
       case "manufacturer":
@@ -348,23 +348,6 @@ export default function SelectNavigatorPage() {
           {/* Column 2: Shared filters */}
           <div className="space-y-4">
             <div className="text-sm font-black uppercase tracking-wider text-gray-300">Filters</div>
-
-            <label className="block">
-              <span className="mb-2 block text-xs font-bold uppercase tracking-wide text-gray-400">Status</span>
-              <div className="flex items-center gap-2">
-                <Filter className="h-4 w-4 text-red-500" />
-                <select
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value as "any" | "pending" | "approved" | "rejected")}
-                  className="w-full rounded-md border-2 border-red-900/50 bg-black px-3 py-2 text-sm text-white outline-none transition focus:border-red-600"
-                >
-                  <option value="any">Any</option>
-                  <option value="pending">Pending</option>
-                  <option value="approved">Approved</option>
-                  <option value="rejected">Rejected</option>
-                </select>
-              </div>
-            </label>
 
             <label className="block">
               <span className="mb-2 block text-xs font-bold uppercase tracking-wide text-gray-400">Sort</span>

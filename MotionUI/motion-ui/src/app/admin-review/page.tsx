@@ -27,7 +27,6 @@ interface AdminReviewRecord {
     rejection_comment?: string;
   
     reviewed_by?: string | null;
-    updated_by?: string | null;
     updated_at?: string | null;
     created_at?: string | null;
   
@@ -110,7 +109,6 @@ export default function AdminReviewTerminalPage() {
   
           // extra convenience for “last updated” etc.
           updated_at: (d.updated_at ?? d.reviewed_at ?? d.created_at ?? null) as string | null,
-          updated_by: (d.updated_by ?? d.reviewed_by ?? null) as string | null,
   
           original_status:
             ((d.original_status ?? d.originalStatus ?? d.status) as string | null) ?? null,
@@ -208,7 +206,14 @@ export default function AdminReviewTerminalPage() {
   // All metadata except the image & title
   const metaPairs = useMemo(() => {
     if (!display) return [] as Array<{ k: string; v: unknown }>;
-    const omit = new Set(["image_url", "title"]);
+    const omit = new Set([
+        "image_url",
+        "title",
+        "original_status",
+        "final_status",
+        "originalStatus",
+        "finalStatus",
+      ]);
     return Object.entries(display)
       .filter(([k]) => !omit.has(k))
       .map(([k, v]) => ({
@@ -221,7 +226,6 @@ export default function AdminReviewTerminalPage() {
     if (!rec) return "Unknown";
     return (
       (rec.reviewed_by as string | undefined) ??
-      (rec.updated_by as string | undefined) ??
       "Unknown"
     );
   }
