@@ -6,13 +6,29 @@ This application automates the process of searching and downloading product imag
 
 https://motion-ui-dev.vercel.app/
 
-## How to run website locally 
+## How to Run Website Locally 
 
-### Prerequisites
+### Prerequisites and External Resources
 
 - Node.js
+- Docker for local image storage
+- Elastic Search (Paid Tier for Deployment)
+- Vercel (Free Tier for Deployment)
 
-Use command "npm run dev" 
+### Steps 
+1. Use command "npm run dev"
+    - For local website deployment 
+2. Run docker-compose.yml
+    - For local image storage
+  
+3. [Run Image Scraper](https://github.com/cbpricey/Motion-Industries/edit/main/README.md#how-to-install-software-for-image-scraper-locally)
+4. Go to localhost link 
+
+### How to use each feature 
+
+- Go to Catalog Navigator to look and accept/reject images
+- Can sort by confidence, manufacture, SKU, etc.
+- To have admin privileges, seed the admin through seed-admin.mjs
 
 ## How to Install Software for Image Scraper locally
 
