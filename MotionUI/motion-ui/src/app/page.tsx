@@ -101,10 +101,15 @@ export default function Home() {
           {/* CTA Buttons */}
           <div className="flex flex-wrap gap-4 mb-16">
             {/* Demo Button */}
-            <button className="bg-red-600 text-white px-10 py-5 font-black uppercase tracking-wider hover:bg-red-700 transition-colors border-2 border-red-600 flex items-center gap-3 group">
+            <a
+                href="https://cbpricey.github.io/Motion-Industries/video/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-red-600 text-white px-10 py-5 font-black uppercase tracking-wider hover:bg-red-700 transition-colors border-2 border-red-600 flex items-center gap-3 group"
+            >
+                <Cpu className="w-5 h-5" />
                 View Demo
-                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-            </button>
+            </a>
 
             {/* GitHub Button */}
             <a
