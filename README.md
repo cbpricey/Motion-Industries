@@ -6,6 +6,9 @@ This application automates the process of searching and downloading product imag
 
 https://motion-ui-dev.vercel.app/
 
+### Project Documentation 
+https://cbpricey.github.io/Motion-Industries/
+
 ## How to Run Website Locally 
 
 ### Prerequisites and External Resources
@@ -18,7 +21,7 @@ https://motion-ui-dev.vercel.app/
 ### Steps 
 1. Navigate to Motion-Industries/MotionUI/motion-ui
     - Website directory 
-3. Use command "npm run dev"
+3. Use command "npm install" then command "npm run dev"
     - For local website deployment 
 4. Run docker-compose.yml
     - For local image storage
