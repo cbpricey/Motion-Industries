@@ -166,6 +166,26 @@ python image_scraper.py
 
 # 7. Confidence Scoring System
 
+Images downloaded by the scraper are assigned confidence scores reflecting the probability the image is actually a product image.
+
+## Implementation Details
+- Uses XGBoost, a gradient boosting decision tree machine learning library. 
+- Our XGBoost classifier was trained on a dataset including good images provided by Motion and bad images from the scraper
+- The trained model takes image and filename features (detailed below), then assigns a confidence score between 0 and 1
+
+# Features used by Model
+- MFRSimilarity: fuzzy similarity between SKU manufacturer and candidate image file name
+- Entropy: Shannon entropy of the image, a measure of pixel randomness/complexity
+- Sharpness: detects edges or bluriness in image using the Laplacian method
+- Brightness: mean of all pixel values in grayscaled image (higher mean = brighter image)
+- WhiteRatio: portion of image that is white pixels (product images tend to have white backgrounds)
+- WhiteBorderRatio: portion of visible pixels in a thin border ring around the image that are white
+
+## Connections to Other Features
+- Confidence scores are saved to ElasticSearch along with images
+- Displayed as % between 0-100 in Review UI, where reviewers can sort or filter by confidence
+  - This enables priotization of images most likely to be relevant
+- Final approvals and rejections are logged, this feedback is used to continually retrain model
 
 ---
 
